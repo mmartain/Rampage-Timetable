@@ -62,7 +62,8 @@ const stagePriority = name => STAGE_ORDER[String(name || '').toLowerCase()] ?? 9
 const FS_STAGE_ABBREV = { 'Mainstage': 'Main' };
 const FAVS_KEY = 'favs';
 const TIMELINE_GAP = 8;
-const NOW_LINE_LEFT_PX = 55;
+const AXIS_COL_PX = 88;
+const NOW_LINE_LEFT_PX = AXIS_COL_PX - 5;
 const NOW_LINE_RIGHT_PX = -15;
 const REMAINING_DAY_CUTOFF_HOUR = 1;
 const REMAINING_WINDOW_HOURS = 6;
@@ -194,16 +195,24 @@ function getStageTextLayout(columnCount) {
   return STAGE_TEXT_LAYOUT_BY_COLUMN_COUNT[columnCount] || STAGE_TEXT_LAYOUT_BY_COLUMN_COUNT[5];
 }
 
+function makeAxisGridCols(stageCount = 1) {
+  return `${AXIS_COL_PX}px ${'1fr '.repeat(Math.max(stageCount, 1)).trim()}`;
+}
+
 function setScheduleGrid(stageRow, tl, gridCols) {
   const columnCount = getScheduleColumnCount(gridCols);
   const stageText = getStageTextLayout(columnCount);
+  const gridLineLeft = `${AXIS_COL_PX + 2}px`;
   stageRow.style.gridTemplateColumns = gridCols;
   stageRow.dataset.columnCount = String(columnCount);
   stageRow.style.setProperty('--stage-name-size', stageText.name + 'px');
   stageRow.style.setProperty('--stage-sub-size', stageText.sub + 'px');
   stageRow.style.setProperty('--stage-sub-height', stageText.subHeight + 'px');
+  stageRow.style.setProperty('--axis-col-width', `${AXIS_COL_PX}px`);
   tl.style.gridTemplateColumns = gridCols;
   tl.dataset.columnCount = String(columnCount);
+  tl.style.setProperty('--axis-col-width', `${AXIS_COL_PX}px`);
+  tl.style.setProperty('--grid-line-left', gridLineLeft);
 }
 
 function getActTimeColumnCount(act) {
@@ -1010,7 +1019,7 @@ async function loadOverrides() {
 
 function makeDay(startHour, endHour, stages) {
   return {
-    gridCols: `60px ${'1fr '.repeat(stages.length).trim()}`,
+    gridCols: makeAxisGridCols(stages.length),
     startHour,
     endHour,
     stages: makeStageList(stages),
@@ -1161,7 +1170,7 @@ function updateCrossSceneIndicators() {
 }
 
 function makeStageGridCols(stages) {
-  return `60px ${'1fr '.repeat(Math.max(stages.length, 1)).trim()}`;
+  return makeAxisGridCols(stages.length);
 }
 
 function getTimeZoneOffsetMinutes(date, timeZone) {
@@ -1583,7 +1592,7 @@ function renderSheetError(message = '') {
   const stageRow = $('stage-row'), axis = $('axis'), tl = $('tl');
   const startHour = 14, endHour = 24;
   clearSchedule(stageRow, axis, tl);
-  setScheduleGrid(stageRow, tl, '60px 1fr');
+  setScheduleGrid(stageRow, tl, makeAxisGridCols(1));
   setTimelineWindow(tl, startHour, endHour);
   axis.appendChild(buildAxisFragment(startHour, endHour));
   tl.appendChild(buildGridLinesFragment(startHour, endHour));
@@ -1684,7 +1693,7 @@ function renderFavs(dayKey) {
   document.body.classList.remove(...DAY_KEYS.map(d => 'day-' + d));
   document.body.classList.add('day-' + dayKey);
 
-  setScheduleGrid(stageRow, tl, `60px ${'1fr '.repeat(N).trim()}`);
+  setScheduleGrid(stageRow, tl, makeAxisGridCols(N));
   setTimelineWindow(tl, startHour, endHour);
 
   const stageFrag    = buildStageHeaderFragment(stageActs.map(s => s.stage), s => buildStageHeader(s.name, s.sub));
@@ -2561,7 +2570,7 @@ function bootApp() {
   function renderProfile() {
     const stageRow = $('stage-row'), tl = $('tl'), axis = $('axis');
     clearSchedule(stageRow, axis, tl);
-    setScheduleGrid(stageRow, tl, '60px 1fr');
+    setScheduleGrid(stageRow, tl, makeAxisGridCols(1));
     stageRow.appendChild(buildStageHeaderFragment([{ name: getSettingsTitle(), sub: '' }], s => buildStageHeader(s.name, s.sub)));
 
     const col = document.createElement('div');

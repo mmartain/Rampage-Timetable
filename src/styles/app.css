@@ -482,9 +482,10 @@
     }
   }
 
-  .time-axis { position: relative; }
+  .time-axis { position: relative; overflow: visible; z-index: 2; }
   .tick-label {
-    position: absolute; right: 8px;
+    position: absolute; left: 0; right: 6px;
+    text-align: right;
     font-family: 'Share Tech Mono', 'Inter', monospace;
     font-size: 29px; font-weight: 400;
     color: var(--muted-time, #ffffff88); letter-spacing: 1px;
@@ -494,7 +495,7 @@
   }
 
   .stage-col { position: relative; height: 100%; min-height: 100%; }
-  .grid-line { position: absolute; left: 62px; right: 0; height: 2px; background: var(--grid-line-color); pointer-events: none; z-index: -1; }
+  .grid-line { position: absolute; left: var(--grid-line-left, 90px); right: 0; height: 2px; background: var(--grid-line-color); pointer-events: none; z-index: -1; }
 
   .act {
     position: absolute; left: 0; right: 0;
