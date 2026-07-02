@@ -470,6 +470,8 @@ const ACT_TEXT_LAYOUT = Object.freeze({
   timeLineHeight: 1.02,
   timeMarginTop: 5,
 });
+const SCROLL_ACT_NAME_MIN = 10;
+const SCROLL_ACT_TIME_MIN = 9;
 let actTextLayoutRAF = 0;
 let actTextLayoutsPrecomputing = false;
 let actTextLayoutsPrecomputeRemaining = false;
@@ -511,6 +513,8 @@ function prepareActTextBox(act, body, name) {
   setImportantStyle(name, 'word-break', 'normal');
   setImportantStyle(name, 'overflow-wrap', 'normal');
   setImportantStyle(name, 'text-align', 'left');
+  setImportantStyle(name, 'max-height', '');
+  setImportantStyle(name, 'overflow', 'visible');
   name.style.lineHeight = ACT_TEXT_LAYOUT.nameLineHeight;
 }
 
@@ -638,18 +642,42 @@ function layoutOneActTextScroll(act) {
   else { nameSize = 11; timeSize = 0; }
 
   if (isPhoneScrollLayout()) {
-    nameSize += 2;
+    nameSize += 1;
     if (timeSize) timeSize += 1;
   }
 
-  name.style.fontSize = nameSize + 'px';
-  name.style.maxWidth = '';
+  const innerW = act.clientWidth - ACT_TEXT_LAYOUT.left - ACT_TEXT_LAYOUT.right;
   if (time) {
     if (timeSize) {
       time.style.fontSize = timeSize + 'px';
       time.classList.remove('act-time-hidden');
+      let tGuard = 0;
+      while (innerW > 0 && time.scrollWidth > innerW && timeSize > SCROLL_ACT_TIME_MIN && tGuard < 20) {
+        timeSize -= 1;
+        time.style.fontSize = timeSize + 'px';
+        tGuard++;
+      }
     } else {
       time.classList.add('act-time-hidden');
+    }
+  }
+
+  name.style.fontSize = nameSize + 'px';
+  name.style.maxWidth = '';
+
+  const innerH = act.clientHeight - ACT_TEXT_LAYOUT.top - ACT_TEXT_LAYOUT.bottom;
+  if (innerH > 0) {
+    const timeH = timeSize ? Math.ceil(timeSize * ACT_TEXT_LAYOUT.timeLineHeight) + 3 : 0;
+    const avail = Math.max(1, innerH - timeH);
+    let guard = 0;
+    while (name.scrollHeight > avail && nameSize > SCROLL_ACT_NAME_MIN && guard < 20) {
+      nameSize -= 1;
+      name.style.fontSize = nameSize + 'px';
+      guard++;
+    }
+    if (name.scrollHeight > avail) {
+      setImportantStyle(name, 'max-height', avail + 'px');
+      setImportantStyle(name, 'overflow', 'hidden');
     }
   }
 }
