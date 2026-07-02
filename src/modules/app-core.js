@@ -62,7 +62,8 @@ const TIMELINE_GAP = 8;
 const AXIS_COL_PX = 88;
 const NOW_LINE_LEFT_PX = AXIS_COL_PX - 5;
 const PX_PER_HOUR_DESKTOP = 72;
-const PX_PER_HOUR_PHONE = 80;
+const PX_PER_HOUR_PHONE = 66;
+const PHONE_FS_BASE_ZOOM = 1.2;
 const STAGE_COL_MIN_PX = 200;
 const STAGE_GRID_GAP_PX = 9;
 const VISIBLE_STAGE_COLS_DESKTOP = 3;
@@ -2956,7 +2957,7 @@ function bootApp() {
   }
 
   function clampFullscreenZoom(value) {
-    return clampValue(value, 0.55, 1);
+    return clampValue(value, 0.55, 1.6);
   }
 
   function touchDistance(touches) {
@@ -3070,11 +3071,15 @@ function bootApp() {
     } else if (phoneCaptureFS) {
       const phoneBaseScale = vw / baseW;
       virtualH = Math.max(baseH, Math.ceil(vh / phoneBaseScale));
-      displayScale = phoneBaseScale * fullscreenZoom;
-      fullscreenPanX = 0;
-      fullscreenPanY = 0;
-      left = (vw - baseW * displayScale) / 2;
-      top = (vh - virtualH * displayScale) / 2;
+      displayScale = phoneBaseScale * PHONE_FS_BASE_ZOOM * fullscreenZoom;
+      const scaledW = baseW * displayScale;
+      const scaledH = virtualH * displayScale;
+      const minLeft = Math.min(0, vw - scaledW);
+      const minTop = Math.min(0, vh - scaledH);
+      fullscreenPanX = clampValue(fullscreenPanX, minLeft, 0);
+      fullscreenPanY = clampValue(fullscreenPanY, minTop, 0);
+      left = fullscreenPanX;
+      top = fullscreenPanY;
     } else {
       const fsMaxScale = Math.min(fullscreenBaseScale, (vh - CANVAS_MARGIN * 2) / baseH, (vw - CANVAS_MARGIN * 2) / baseW);
       displayScale = fsMaxScale * fullscreenZoom;
@@ -3131,14 +3136,6 @@ function bootApp() {
   document.addEventListener('touchstart', e => {
     if (!document.body.classList.contains('is-fullscreen')) return;
 
-    const vv = window.visualViewport;
-    const vw = (vv && vv.width) ? vv.width : window.innerWidth;
-    const vh = (vv && vv.height) ? vv.height : window.innerHeight;
-    if (isPhoneLikeFullscreenViewport(vw, vh) && e.touches.length !== 2) {
-      resetFullscreenCaptureTransform();
-      return;
-    }
-
     if (e.touches.length === 2) {
       pinchStartDistance = touchDistance(e.touches);
       pinchStartZoom = fullscreenZoom;
@@ -3156,16 +3153,6 @@ function bootApp() {
 
   document.addEventListener('touchmove', e => {
     if (!document.body.classList.contains('is-fullscreen')) return;
-
-    const vv = window.visualViewport;
-    const vw = (vv && vv.width) ? vv.width : window.innerWidth;
-    const vh = (vv && vv.height) ? vv.height : window.innerHeight;
-    if (isPhoneLikeFullscreenViewport(vw, vh) && e.touches.length !== 2) {
-      resetFullscreenCaptureTransform();
-      applyScale();
-      e.preventDefault();
-      return;
-    }
 
     if (e.touches.length === 2 && pinchStartDistance) {
       fullscreenZoom = clampFullscreenZoom(pinchStartZoom * (touchDistance(e.touches) / pinchStartDistance));
