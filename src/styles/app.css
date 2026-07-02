@@ -914,7 +914,7 @@
     background: #000000; border-color: var(--sun-accent, var(--accent)); color: #ffffff;
   }
 
-html[data-viewport="phone"] { --edge-gap: 10px; --bottom-btn-size: 58px; }
+html[data-viewport="phone"] { --edge-gap: 10px; --bottom-btn-size: 58px; --popover-btn-size: 50px; --color-option-size: 38px; }
 html[data-viewport="phone"] .content {
   padding: 8px 12px calc(74px + env(safe-area-inset-bottom, 0px));
   padding-left: calc(12px + env(safe-area-inset-left, 0px));
@@ -993,6 +993,52 @@ html[data-viewport="phone"] #settings-popover {
   right: calc(10px + env(safe-area-inset-right, 0px));
   left: auto;
   bottom: calc(var(--bottom-btn-size) + 24px + env(safe-area-inset-bottom, 0px));
+  gap: 12px;
+}
+html[data-viewport="phone"] #settings-popover .top-btn svg,
+html[data-viewport="phone"] #settings-popover #reset-btn svg,
+html[data-viewport="phone"] #settings-popover #help-btn svg,
+html[data-viewport="phone"] #settings-popover #light-mode-btn svg,
+html[data-viewport="phone"] #settings-popover #profile-btn svg {
+  width: 26px !important;
+  height: 26px !important;
+}
+html[data-viewport="phone"] #settings-popover .top-btn {
+  border-width: 2px;
+}
+html[data-viewport="phone"] #reset-label {
+  font-size: 30px;
+  letter-spacing: 2px;
+  -webkit-text-stroke: 1px #000;
+}
+html[data-viewport="phone"] .profile-mode-col {
+  padding: 12px 14px;
+  gap: 16px;
+}
+html[data-viewport="phone"] .profile-mode-section { gap: 8px; }
+html[data-viewport="phone"] .profile-mode-section-title {
+  font-size: 16px;
+  letter-spacing: 2px;
+}
+html[data-viewport="phone"] .profile-mode-row,
+html[data-viewport="phone"] .profile-mode-dual-settings-row { gap: 8px; }
+html[data-viewport="phone"] .profile-mode-feat-btn,
+html[data-viewport="phone"] .profile-mode-day-btn,
+html[data-viewport="phone"] .profile-mode-sun-btn {
+  height: 46px;
+  border-width: 2px;
+}
+html[data-viewport="phone"] .profile-mode-feat-btn { font-size: 18px; letter-spacing: 1px; }
+html[data-viewport="phone"] .profile-mode-day-btn { font-size: 15px; letter-spacing: 0.5px; }
+html[data-viewport="phone"] .profile-mode-sun-btn { font-size: 12px; letter-spacing: 0.5px; padding: 0 6px; }
+html[data-viewport="phone"] .profile-mode-setting-col .profile-mode-section-title { font-size: 13px; letter-spacing: 1px; }
+html[data-viewport="phone"] .profile-mode-update-row { margin-top: 4px; }
+html[data-viewport="phone"] .profile-mode-update-btn {
+  flex: 0 0 auto;
+  min-width: 150px;
+  height: 46px;
+  font-size: 18px;
+  letter-spacing: 1px;
 }
 html[data-viewport="phone"] body.bottom-buttons-idle #bottom-bar .bottom-btn {
   opacity: 0.78;
