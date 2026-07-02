@@ -1778,6 +1778,7 @@ function renderDay(dayKey) {
   if (!actTextLayoutsPrecomputing && !normalActTextLayoutsReady) queueActTextLayoutIfMissing();
   updateNowLine();
   updateResetBtn();
+  queueLayoutRefresh();
 }
 
 
@@ -2131,7 +2132,14 @@ function waitForActLayoutFontsReady(timeoutMs = 3000) {
   ]);
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+function queueLayoutRefresh() {
+  requestAnimationFrame(() => window.dispatchEvent(new Event('resize')));
+}
+
+let booted = false;
+function bootApp() {
+  if (booted) return;
+  booted = true;
   const _curFestDay = getCurrentFestivalDay();
   normalDayKey = _curFestDay || 'jeudi';
   favsOnly = false;
@@ -2174,6 +2182,7 @@ document.addEventListener('DOMContentLoaded', () => {
     pageRevealed = true;
     document.body.style.opacity = '1';
     document.documentElement.classList.add('page-revealed');
+    queueLayoutRefresh();
   }
 
   loadOverrides().then(() => {
@@ -3228,6 +3237,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-});
+}
+
+  document.addEventListener('DOMContentLoaded', bootApp);
+  if (document.readyState !== 'loading') bootApp();
 
 }

@@ -6,6 +6,12 @@
     width: 100%; height: 100%;
     overflow: hidden;
   }
+  html[data-viewport="phone"] {
+    overflow-x: hidden;
+    overflow-y: auto;
+    height: auto;
+    min-height: 100%;
+  }
 
   :root {
     --accent: #eb0028;
@@ -487,7 +493,7 @@
     transform: translateY(-50%);
   }
 
-  .stage-col { position: relative; }
+  .stage-col { position: relative; height: 100%; min-height: 100%; }
   .grid-line { position: absolute; left: 62px; right: 0; height: 2px; background: var(--grid-line-color); pointer-events: none; z-index: -1; }
 
   .act {
