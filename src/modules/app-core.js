@@ -30,7 +30,6 @@ let sunAutoMode = false;
 let showRemainingOnly = false;
 let fsRemainingOnly = false;
 let showFavFillActs = true;
-let secondaryStagesMode = false;
 
 const DAY_KEYS = ['jeudi', 'vendredi', 'samedi', 'dimanche'];
 const FESTIVAL_DAYS = { 2: 'jeudi', 3: 'vendredi', 4: 'samedi', 5: 'dimanche' };
@@ -66,6 +65,8 @@ const PX_PER_HOUR_DESKTOP = 72;
 const PX_PER_HOUR_PHONE = 80;
 const STAGE_COL_MIN_PX = 200;
 const STAGE_GRID_GAP_PX = 9;
+const VISIBLE_STAGE_COLS_DESKTOP = 3;
+const VISIBLE_STAGE_COLS_PHONE = 2;
 const H_SCROLL_MIN_STAGES = 4;
 const NOW_LINE_RIGHT_PX = -15;
 const REMAINING_DAY_CUTOFF_HOUR = 1;
@@ -106,7 +107,7 @@ function setThemeVars() {
 }
 
 function paintThemedButtons() {
-  ['fs-btn', 'settings-btn', 'favs-btn', 'stage-view-btn', 'help-btn'].forEach(id => {
+  ['fs-btn', 'settings-btn', 'favs-btn', 'help-btn'].forEach(id => {
     const btn = $(id);
     if (!btn) return;
     btn.style.removeProperty('background');
@@ -183,8 +184,14 @@ function getJuly2026Day(cutoffHour, dayMap, fallback = null) {
 function activeDateKey() { return 'date'; }
 
 function getScheduleColumnCount(gridCols) {
-  const count = (String(gridCols).match(/1fr/g) || []).length;
-  return Math.max(1, Math.min(5, count));
+  const parts = String(gridCols).trim().split(/\s+/).filter(Boolean);
+  return Math.max(1, parts.length - 1);
+}
+
+function getScheduleStageTextColumnCount(columnCount) {
+  const count = Math.max(1, Number(columnCount) || 1);
+  if (isScrollTimelineMode() && count >= getHScrollThreshold()) return getVisibleStageCols();
+  return count;
 }
 
 const STAGE_TEXT_LAYOUT_BY_COLUMN_COUNT = Object.freeze({
@@ -286,15 +293,29 @@ function getHScrollThreshold() {
   return isPhoneScrollLayout() ? 3 : H_SCROLL_MIN_STAGES;
 }
 
-function getStageColMinPx() {
-  return isPhoneScrollLayout() ? 260 : STAGE_COL_MIN_PX;
+function getVisibleStageCols() {
+  return isPhoneScrollLayout() ? VISIBLE_STAGE_COLS_PHONE : VISIBLE_STAGE_COLS_DESKTOP;
 }
+
+function getScheduleScrollWidth() {
+  const scroll = document.querySelector('.schedule-scroll');
+  return scroll?.clientWidth || Math.min(window.innerWidth, 1080);
+}
+
+function getHScrollStageColPx() {
+  const visible = getVisibleStageCols();
+  const available = getScheduleScrollWidth();
+  const gaps = Math.max(0, visible - 1) * STAGE_GRID_GAP_PX;
+  const colPx = Math.floor((available - AXIS_COL_PX - gaps) / visible);
+  return Math.max(isPhoneScrollLayout() ? 140 : STAGE_COL_MIN_PX, colPx);
+}
+
 
 function makeAxisGridCols(stageCount = 1) {
   const count = Math.max(stageCount, 1);
-  const minCol = getStageColMinPx();
   if (isScrollTimelineMode() && count >= getHScrollThreshold()) {
-    const stageCols = Array(count).fill(`minmax(${minCol}px, 1fr)`).join(' ');
+    const colPx = getHScrollStageColPx();
+    const stageCols = Array(count).fill(`${colPx}px`).join(' ');
     return `${AXIS_COL_PX}px ${stageCols}`;
   }
   return `${AXIS_COL_PX}px ${'1fr '.repeat(count).trim()}`;
@@ -310,15 +331,18 @@ function applyScheduleHorizontalLayout(stageRow, tl, columnCount) {
     tl.style.minWidth = '';
     return;
   }
-  const minCol = getStageColMinPx();
-  const minWidth = AXIS_COL_PX + columnCount * minCol + Math.max(0, columnCount - 1) * STAGE_GRID_GAP_PX;
+  const colPx = getHScrollStageColPx();
+  const minWidth = AXIS_COL_PX + columnCount * colPx + Math.max(0, columnCount - 1) * STAGE_GRID_GAP_PX;
+  const gridCols = makeAxisGridCols(columnCount);
+  stageRow.style.gridTemplateColumns = gridCols;
+  tl.style.gridTemplateColumns = gridCols;
   stageRow.style.minWidth = minWidth + 'px';
   tl.style.minWidth = minWidth + 'px';
 }
 
 function setScheduleGrid(stageRow, tl, gridCols) {
   const columnCount = getScheduleColumnCount(gridCols);
-  const stageText = getStageTextLayout(columnCount);
+  const stageText = getStageTextLayout(getScheduleStageTextColumnCount(columnCount));
   const gridLineLeft = `${AXIS_COL_PX + 2}px`;
   stageRow.style.gridTemplateColumns = gridCols;
   stageRow.dataset.columnCount = String(columnCount);
@@ -334,7 +358,7 @@ function setScheduleGrid(stageRow, tl, gridCols) {
 }
 
 function getActTimeColumnCount(act) {
-  return Math.max(1, Math.min(5, Number(act.closest('#tl')?.dataset.columnCount || 5)));
+  return getScheduleStageTextColumnCount(Number(act.closest('#tl')?.dataset.columnCount || 5));
 }
 
 function getActTimeWidthRatio(columnCount) {
@@ -696,8 +720,6 @@ function precomputeNormalDayTextLayouts(finalDayKey) {
     renderDay(safeFinalDay);
     return;
   }
-  const savedSecondaryMode = secondaryStagesMode;
-  const savedCampingStageMode = false;
   const safeFinalDay = finalDayKey || normalDayKey || 'jeudi';
   cancelAnimationFrame(actTextLayoutRAF);
   actTextLayoutRAF = 0;
@@ -706,37 +728,20 @@ function precomputeNormalDayTextLayouts(finalDayKey) {
   ACT_TEXT_STYLE_CACHE.clear();
 
   DAY_KEYS.forEach(dayKey => {
-    secondaryStagesMode = false;
-        renderDay(dayKey);
+    renderDay(dayKey);
     updateActTextLayout();
     cacheActTextStyles(dayKey + '|primary');
-
-    if (hasSecondaryStages(dayKey)) {
-      secondaryStagesMode = true;
-            renderDay(dayKey);
-      updateActTextLayout();
-      cacheActTextStyles(dayKey + '|secondary');
-    }
   });
 
   const currentDay = getCurrentFestivalDay();
   if (currentDay) {
     actTextLayoutsPrecomputeRemaining = true;
-
-    secondaryStagesMode = false;
-        renderDay(currentDay);
+    renderDay(currentDay);
     updateActTextLayout();
     cacheActTextStyles(currentDay + '|primary|remaining');
-
-    secondaryStagesMode = true;
-        renderDay(currentDay);
-    updateActTextLayout();
-    cacheActTextStyles(currentDay + '|secondary|remaining');
-
     actTextLayoutsPrecomputeRemaining = false;
   }
 
-  secondaryStagesMode = savedSecondaryMode;
   actTextLayoutsPrecomputing = false;
   actTextLayoutsPrecomputeRemaining = false;
   normalActTextLayoutsReady = true;
@@ -1250,11 +1255,7 @@ function getSecondaryStages(dayKey) {
 
 
 
-function getNormalViewStages(dayKey) {
-  return secondaryStagesMode ? getSecondaryStages(dayKey) : getPrimaryStages(dayKey);
-}
-
-function getFavoriteCandidateStages(dayKey) {
+function getAllScheduleStages(dayKey) {
   const seen = new Set();
   return [...getPrimaryStages(dayKey), ...getSecondaryStages(dayKey)]
     .filter(stage => {
@@ -1266,18 +1267,12 @@ function getFavoriteCandidateStages(dayKey) {
     .sort((a, b) => stagePriority(a.name) - stagePriority(b.name));
 }
 
-function getStageViewCycleStages(dayKey) {
-  const stages = ['primary'];
-  if (hasSecondaryStages(dayKey)) stages.push('secondary');
-  return stages;
+function getNormalViewStages(dayKey) {
+  return getAllScheduleStages(dayKey);
 }
 
-function getCurrentStageViewState() {
-  return secondaryStagesMode ? 'secondary' : 'primary';
-}
-
-function setStageViewState(state) {
-  secondaryStagesMode = state === 'secondary';
+function getFavoriteCandidateStages(dayKey) {
+  return getAllScheduleStages(dayKey);
 }
 
 function getStageGroup(stageName) {
@@ -1293,11 +1288,11 @@ function getStageGroup(stageName) {
 }
 
 function getVisibleStageGroup() {
-  const plainScheduleView = !profileMode && !favsOnly;
-  if (secondaryStagesMode && plainScheduleView) return 'secondary';
-  if (plainScheduleView) return 'primary';
+  if (!profileMode && !favsOnly) return 'all';
   return 'other';
 }
+
+function updateCrossSceneIndicators() {}
 
 function isActInCrossSceneNoticeWindow(act, hour) {
   const start = Number(act && act.start);
@@ -1333,20 +1328,6 @@ function getSelectedCrossSceneNoticeGroups(favs = getFavs()) {
   return getSelectedNormalNoticeGroups(favs);
 }
 
-function setCrossSceneIndicator(btn, active) {
-  if (!btn) return;
-  const isVisible = btn.style.visibility !== 'hidden';
-  btn.classList.toggle('cross-scene-indicator', Boolean(active && isVisible));
-}
-
-function updateCrossSceneIndicators() {
-  const groups = getSelectedCrossSceneNoticeGroups();
-  const currentGroup = getVisibleStageGroup();
-  const hasOtherScheduleGroup = ['primary', 'secondary']
-    .some(group => groups.has(group) && group !== currentGroup);
-
-  setCrossSceneIndicator($('stage-view-btn'), hasOtherScheduleGroup);
-}
 
 function makeStageGridCols(stagesOrCount) {
   const count = typeof stagesOrCount === 'number' ? stagesOrCount : stagesOrCount.length;
@@ -1808,11 +1789,9 @@ function updateFavDayVisibility(favDays = getFavDays()) {
   const allowed = new Set(profileEnabledDays);
   const base = DAY_KEYS.filter(d => allowed.has(d));
   const visible = new Set(favsOnly ? favDays.filter(d => allowed.has(d)) : base);
-  const hideSecondaryUnavailableDay = secondaryStagesMode && !favsOnly && !profileMode;
   document.querySelectorAll('.day-item').forEach(el => {
     const dayKey = el.dataset.day;
-    const shouldHide = hideSecondaryUnavailableDay && !hasSecondaryStages(dayKey);
-    el.style.display = visible.has(dayKey) && !shouldHide ? '' : 'none';
+    el.style.display = visible.has(dayKey) ? '' : 'none';
   });
 }
 
@@ -1915,11 +1894,8 @@ function renderDay(dayKey) {
   const favs = getFavs();
   const overrideEntries = Object.entries(overrides);
 
-  if (secondaryStagesMode && !hasSecondaryStages(dayKey)) secondaryStagesMode = false;
-
   document.body.classList.remove(...DAY_KEYS.map(d => 'day-' + d));
   document.body.classList.add('day-' + dayKey);
-  document.body.classList.toggle('secondary-stages-mode', !!secondaryStagesMode);
   const stages = getNormalViewStages(dayKey);
   const actsByStage = stages.map(stage => ({ stage, acts: getActsFromOverrides(dayKey, stage.name, overrideEntries)
       .filter(act => shouldShowActForCurrentView(dayKey, stage.name, act, favs)) }));
@@ -1933,7 +1909,7 @@ function renderDay(dayKey) {
   setScheduleGrid(stageRow, tl, makeStageGridCols(stages.length));
   setTimelineWindow(tl, startHour, endHour);
 
-  const layoutKey = dayKey + (secondaryStagesMode ? '|secondary' : '|primary') + (remainingActive ? '|remaining' : '');
+  const layoutKey = dayKey + '|primary' + (remainingActive ? '|remaining' : '');
   const stageFrag = buildStageHeaderFragment(stages, s => buildStageHeader(s.name, s.sub));
   const axisFrag = buildAxisFragment(startHour, axisEndHour, scaleHours);
   const timelineFrag = document.createDocumentFragment();
@@ -2344,7 +2320,6 @@ function bootApp() {
   const _curFestDay = getCurrentFestivalDay();
   normalDayKey = _curFestDay || 'jeudi';
   favsOnly = false;
-  secondaryStagesMode = false;
   profileEnabledDays = JSON.parse(localStorage.getItem('profileEnabledDays') || '["jeudi","vendredi","samedi","dimanche"]');
   profileDancefloorEnabled = localStorage.getItem('profileDancefloor') !== '0';
   if (favsOnly)   document.body.classList.add('favs-only');
@@ -2396,7 +2371,6 @@ function bootApp() {
       renderFavsMode(normalDayKey);
     }
     updateNowLine();
-        updateStageViewBtn();
 
     if (normalMode) {
       requestAnimationFrame(() => requestAnimationFrame(() => {
@@ -2452,7 +2426,7 @@ function bootApp() {
 
   const setTitle = title => document.querySelector('.label span').textContent = title;
   const selectDefaultDay = () => { normalDayKey = getDefaultDay(); setActiveDay(normalDayKey); };
-  const showDefaultDay = () => { secondaryStagesMode = false; updateFavDayVisibility(DAY_KEYS); selectDefaultDay(); if (!normalActTextLayoutsReady) precomputeNormalDayTextLayouts(normalDayKey); else renderDay(normalDayKey); updateStageViewBtn(); };
+  const showDefaultDay = () => { updateFavDayVisibility(DAY_KEYS); selectDefaultDay(); if (!normalActTextLayoutsReady) precomputeNormalDayTextLayouts(normalDayKey); else renderDay(normalDayKey); };
   
 
   function refreshTimeSensitiveUI() {
@@ -2480,9 +2454,6 @@ function bootApp() {
   document.querySelectorAll('.day-item').forEach(el => {
     el.addEventListener('click', () => {
       const selectedDay = el.dataset.day;
-      if (!favsOnly) {
-        if (secondaryStagesMode && !hasSecondaryStages(selectedDay)) return;
-      }
       if (profileMode) {
         profileMode = false;
         document.body.classList.remove('profile-mode');
@@ -2492,7 +2463,6 @@ function bootApp() {
       normalDayKey = selectedDay;
       setActiveDay(normalDayKey);
       if (favsOnly) { renderFavsMode(selectedDay); } else { renderDay(normalDayKey); }
-            updateStageViewBtn();
     });
   });
 
@@ -2696,70 +2666,7 @@ function bootApp() {
   }
   applyFullscreenVisibilityPrefs();
 
-  function isPlainScheduleView() {
-    return !profileMode && !favsOnly;
-  }
-
-  function getNextStageViewState() {
-    const activeDay = document.querySelector('.day-item.active')?.dataset.day || normalDayKey;
-    const cycle = getStageViewCycleStages(activeDay);
-    const current = getCurrentStageViewState();
-    return cycle[(Math.max(0, cycle.indexOf(current)) + 1) % cycle.length] || 'primary';
-  }
-
-  function getStageViewIconSvg(targetState) {
-    const bars = {
-      primary: [
-        { x: 2, width: 2.8 }, { x: 6.3, width: 2.8 }, { x: 10.6, width: 2.8 },
-        { x: 14.9, width: 2.8 }, { x: 19.2, width: 2.8 },
-      ],
-      secondary: [
-        { x: 3, width: 5 }, { x: 9.5, width: 5 }, { x: 16, width: 5 },
-      ],
-    }[targetState] || [
-      { x: 3, width: 5 }, { x: 9.5, width: 5 }, { x: 16, width: 5 },
-    ];
-    const rects = bars.map(bar => `<rect x="${bar.x}" y="4" width="${bar.width}" height="16" rx="1"/>`).join('');
-    return `<svg width="92" height="92" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${rects}</svg>`;
-  }
-
-  function updateStageViewIcon(btn, targetState) {
-    if (!btn || btn.dataset.stageIconTarget === targetState) return;
-    btn.dataset.stageIconTarget = targetState;
-    btn.innerHTML = getStageViewIconSvg(targetState);
-  }
-
-  function getStageViewTargetLabel() {
-    const next = getNextStageViewState();
-    return next === 'secondary' ? 'Secondary stages' : 'Main stages';
-  }
-
-  function updateStageViewBtn() {
-    const btn = $('stage-view-btn');
-    if (!btn) return;
-    const inSchedule = isPlainScheduleView();
-    const activeDay = document.querySelector('.day-item.active')?.dataset.day || normalDayKey;
-    const cycle = getStageViewCycleStages(activeDay);
-    const hasExtraView = cycle.length > 1;
-    const canUseStageView = inSchedule && hasExtraView;
-    if (inSchedule && !hasExtraView) setStageViewState('primary');
-    const currentState = getCurrentStageViewState();
-    const isExtraView = canUseStageView && currentState !== 'primary';
-    document.body.classList.toggle('secondary-stages-mode', canUseStageView && secondaryStagesMode);
-    setUtilityButtonState(btn, canUseStageView, isExtraView);
-    updateCrossSceneIndicators();
-    btn.disabled = inSchedule && !hasExtraView;
-    btn.setAttribute('aria-disabled', btn.disabled ? 'true' : 'false');
-    const targetState = getNextStageViewState();
-    updateStageViewIcon(btn, targetState);
-    const label = getStageViewTargetLabel();
-    btn.setAttribute('aria-label', label);
-    btn.title = label;
-  }
-
-  function applyProfileState() {
-    updateStageViewBtn();
-  }
+  function applyProfileState() {}
 
   function toggleStoredFlag(key, value) {
     localStorage.setItem(key, value ? '1' : '0');
@@ -2965,8 +2872,6 @@ function bootApp() {
       updateSettingsBtn();
       updateColorMenuBtn();
       if (favsOnly) { favsOnly = false; document.body.classList.remove('favs-only'); updateFavsBtn(); updateFavDayVisibility(); }
-      secondaryStagesMode = false;
-      updateStageViewBtn();
       setTitle(getSettingsTitle());
       renderProfile();
     } else {
@@ -2982,7 +2887,6 @@ function bootApp() {
     if (profileMode) { profileMode = false; document.body.classList.remove('profile-mode'); updateProfileBtn(); }
     favsOnly = !favsOnly;
     document.body.classList.toggle('favs-only', favsOnly);
-    secondaryStagesMode = false;
     if (favsOnly) {
       setTitle('FAVORITES');
       renderFavsMode(normalDayKey);
@@ -2992,41 +2896,7 @@ function bootApp() {
       renderDay(normalDayKey);
     }
     updateFavsBtn();
-    updateStageViewBtn();
   });
-
-  const stageViewBtn = $('stage-view-btn');
-  stageViewBtn?.addEventListener('click', e => {
-    e.stopPropagation();
-    if (!isPlainScheduleView()) {
-      secondaryStagesMode = false;
-      favsOnly = false;
-      profileMode = false;
-      document.body.classList.remove('favs-only', 'profile-mode');
-      updateFavsBtn();
-      updateProfileBtn();
-      setTitle('Rampage Open Air 2026');
-      showDefaultDay();
-      return;
-    }
-    const cycle = getStageViewCycleStages(normalDayKey);
-    if (cycle.length < 2) { updateStageViewBtn(); return; }
-    const currentIndex = Math.max(0, cycle.indexOf(getCurrentStageViewState()));
-    setStageViewState(cycle[(currentIndex + 1) % cycle.length]);
-    setTitle('Rampage Open Air 2026');
-    const visibleDays = secondaryStagesMode
-      ? DAY_KEYS.filter(day => getStageViewCycleStages(day).includes('secondary'))
-      : DAY_KEYS;
-    updateFavDayVisibility(visibleDays);
-    if (secondaryStagesMode && !visibleDays.includes(normalDayKey)) {
-      normalDayKey = visibleDays[0] || 'vendredi';
-    }
-    setActiveDay(normalDayKey);
-    if (!normalActTextLayoutsReady) precomputeNormalDayTextLayouts(normalDayKey);
-    else renderDay(normalDayKey);
-    updateStageViewBtn();
-  });
-  document.addEventListener('favschange', () => { updateStageViewBtn(); updateCrossSceneIndicators(); });
 
   document.addEventListener('click', () => {
     colorMenu?.classList.remove('open');

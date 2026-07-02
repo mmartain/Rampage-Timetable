@@ -3,7 +3,7 @@ const HELP_KEY = 'helpSeen';
 const SECTIONS = [
   { title: 'Schedule', text: 'Tap a day to switch. Swipe left or right on the timetable to change days.' },
   { title: 'Favorites', text: 'Tap an act to star it. Open Favorites to see your picks across stages.' },
-  { title: 'Stages', text: 'Use the stage button to cycle between main and secondary stages. Thursday has no secondary stages.' },
+  { title: 'Stages', text: 'Swipe horizontally through all main and secondary stages. About three stages are visible at a time.' },
   { title: 'Fullscreen', text: 'Fullscreen is for TV or wallpaper view. Tap outside acts to exit. Pinch to zoom on phone.' },
   { title: 'Offline', text: 'The schedule is cached on first load and works without signal at the festival.' },
   { title: 'Refresh', text: 'Open Settings → Update to pull the latest changes from the sheet.' },

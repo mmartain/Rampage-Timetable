@@ -268,7 +268,6 @@
     --slot-0: var(--edge-gap);
     --slot-1: calc(var(--edge-gap) + var(--bottom-step));
     --slot-2: calc(var(--edge-gap) + var(--bottom-step) + var(--bottom-step));
-    --slot-3: calc(var(--edge-gap) + var(--bottom-step) + var(--bottom-step) + var(--bottom-step));
     position: absolute;
     left: 0; right: 0; bottom: 0;
     height: calc(var(--edge-gap) + var(--bottom-btn-size));
@@ -278,7 +277,15 @@
     opacity: 1;
   }
   #left-btns, #right-btns { display: block; }
-  #favs-btn, #fs-btn, #settings-btn, #stage-view-slot {
+  #bottom-bar-actions {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: calc(var(--edge-gap) + var(--bottom-btn-size));
+    pointer-events: none;
+  }
+  #favs-btn, #fs-btn, #settings-btn {
     position: absolute;
     bottom: var(--edge-gap);
   }
@@ -293,18 +300,7 @@
     box-sizing: border-box;
   }
   #fs-btn { right: var(--slot-1); }
-  #stage-view-slot {
-    right: var(--slot-2);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: var(--bottom-btn-size);
-    height: var(--bottom-btn-size);
-    pointer-events: auto;
-  }
-  #stage-view-slot > #stage-view-btn { position: static; flex: 0 0 auto; }
-  #stage-view-btn svg { width: 92px; height: 92px; }
-  #favs-btn { right: var(--slot-3); }
+  #favs-btn { right: var(--slot-2); }
   #right-btns .top-btn, #right-btns .color-btn, #right-btns .color-option { pointer-events: auto; }
   #bottom-bar .bottom-btn {
     pointer-events: auto;
@@ -404,7 +400,6 @@
   body.favs-only #days-left,
   body.is-fullscreen #days-left { display: none; }
   .disco-mode .day-item[data-day="jeudi"],
-  body.secondary-stages-mode .day-item[data-day="jeudi"],
   body.camping-stage-mode .day-item[data-day="jeudi"] { display: none; }
   .day-row { display: flex; align-items: flex-end; gap: 20px; height: 94px; flex-shrink: 0; }
   .day-item {
@@ -910,15 +905,66 @@
     background: #000000; border-color: var(--sun-accent, var(--accent)); color: #ffffff;
   }
 
-html[data-viewport="phone"] { --edge-gap: 12px; --bottom-btn-size: 96px; }
+html[data-viewport="phone"] { --edge-gap: 12px; --bottom-btn-size: 88px; }
 html[data-viewport="phone"] .content {
-  padding: 16px 12px calc(80px + env(safe-area-inset-bottom, 0px));
+  padding: 16px 12px calc(96px + env(safe-area-inset-bottom, 0px));
   padding-left: calc(12px + env(safe-area-inset-left, 0px));
   padding-right: calc(12px + env(safe-area-inset-right, 0px));
 }
 html[data-viewport="phone"] .day-item { font-size: 28px; }
 html[data-viewport="phone"] .day-item.active { font-size: 48px; }
-html[data-viewport="phone"] #bottom-bar { padding-bottom: env(safe-area-inset-bottom, 0px); }
+html[data-viewport="phone"] #bottom-bar {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: stretch;
+  width: 100%;
+  height: auto;
+  min-height: calc(var(--bottom-btn-size) + 20px + env(safe-area-inset-bottom, 0px));
+  padding: 10px 10px calc(10px + env(safe-area-inset-bottom, 0px));
+  padding-left: calc(10px + env(safe-area-inset-left, 0px));
+  padding-right: calc(10px + env(safe-area-inset-right, 0px));
+  background: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.45) 32%, rgba(0, 0, 0, 0.82) 100%);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  pointer-events: none;
+}
+html[data-viewport="phone"] body.light-mode:not(.disco-mode) #bottom-bar {
+  background: linear-gradient(180deg, transparent 0%, rgba(239, 239, 239, 0.5) 32%, rgba(239, 239, 239, 0.92) 100%);
+}
+html[data-viewport="phone"] #bottom-bar #right-btns {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+html[data-viewport="phone"] #bottom-bar-actions {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-evenly;
+  gap: 10px;
+  width: 100%;
+  height: auto;
+  pointer-events: none;
+}
+html[data-viewport="phone"] #bottom-bar-actions .bottom-btn {
+  position: relative;
+  right: auto;
+  bottom: auto;
+  flex: 0 0 auto;
+  pointer-events: auto;
+}
+html[data-viewport="phone"] #settings-popover {
+  right: calc(10px + env(safe-area-inset-right, 0px));
+  left: auto;
+  bottom: calc(var(--bottom-btn-size) + 24px + env(safe-area-inset-bottom, 0px));
+}
+html[data-viewport="phone"] body.bottom-buttons-idle #bottom-bar .bottom-btn {
+  opacity: 0.78;
+}
+html[data-viewport="phone"] body.bottom-buttons-idle #bottom-bar .bottom-btn.control-active {
+  opacity: 1;
+}
 
 /* Scroll timeline (normal view): vertical time scroll + optional horizontal stage scroll */
 body.scroll-timeline {
@@ -1003,7 +1049,7 @@ body.scroll-timeline #bottom-bar {
   z-index: 30;
 }
 html[data-viewport="phone"] body.scroll-timeline .content {
-  padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px));
 }
 html[data-viewport="phone"] body.scroll-timeline .schedule-scroll {
   overflow-y: auto;
