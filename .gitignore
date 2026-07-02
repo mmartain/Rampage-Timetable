@@ -4,3 +4,5 @@ dist/
 Thumbs.db
 *.local
 legacy/
+scripts/
+src/**/*.raw.*

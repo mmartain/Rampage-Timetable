@@ -62,10 +62,6 @@
     --color-option-size: 95px;
   }
 
-  body.disco-mode {
-    --font-scale: 1.666667;
-  }
-
   body {
     background: transparent; color: #fff;
     font-family: 'Inter', sans-serif;
@@ -147,24 +143,6 @@
     touch-action: none;
   }
 
-  .easter-img {
-    position: absolute; top: 0; left: 0;
-    width: 1080px; height: 1920px;
-    object-fit: cover; pointer-events: none; z-index: 0;
-  }
-  .easter-img.contain { object-fit: contain; object-position: top center; }
-  #fr-img,
-  #en-img,
-  #zh-img {
-    top: auto;
-    bottom: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-    object-position: center bottom;
-  }
-  #disco-img { width: 540px; height: 960px; left: 270px; }
-
   .round-btn {
     border-radius: 50%; cursor: pointer;
     display: flex; align-items: center; justify-content: center;
@@ -244,9 +222,16 @@
     opacity: 0.42;
     pointer-events: none;
   }
-  #camping-btn { font: 109px 'Bebas Neue', sans-serif; color: #fff; }
   #profile-btn svg { width: 98px; height: 98px; }
   .info-col { display: flex; flex-direction: column; gap: 14px; padding: 16px 0; }
+
+  .schedule-scroll {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
 
   .content {
     position: relative; z-index: 1;
@@ -260,7 +245,6 @@
       var(--fs-pad-bottom, 100px)
       var(--fs-pad-left, 62px);
   }
-  .is-fullscreen .easter-img { height: 100%; }
   body.is-fullscreen.fs-safe-guides::after {
     content: '';
     position: fixed;
@@ -273,14 +257,12 @@
   }
 
   #bottom-bar {
-    --bottom-gap: calc((1080px - (var(--edge-gap) * 2) - (var(--bottom-btn-size) * 6)) / 5);
+    --bottom-gap: calc((1080px - (var(--edge-gap) * 2) - (var(--bottom-btn-size) * 4)) / 3);
     --bottom-step: calc(var(--bottom-btn-size) + var(--bottom-gap));
     --slot-0: var(--edge-gap);
     --slot-1: calc(var(--edge-gap) + var(--bottom-step));
     --slot-2: calc(var(--edge-gap) + var(--bottom-step) + var(--bottom-step));
     --slot-3: calc(var(--edge-gap) + var(--bottom-step) + var(--bottom-step) + var(--bottom-step));
-    --slot-4: calc(var(--edge-gap) + var(--bottom-step) + var(--bottom-step) + var(--bottom-step) + var(--bottom-step));
-    --slot-5: calc(var(--edge-gap) + var(--bottom-step) + var(--bottom-step) + var(--bottom-step) + var(--bottom-step) + var(--bottom-step));
     position: absolute;
     left: 0; right: 0; bottom: 0;
     height: calc(var(--edge-gap) + var(--bottom-btn-size));
@@ -290,7 +272,7 @@
     opacity: 1;
   }
   #left-btns, #right-btns { display: block; }
-  #camping-btn, #disco-btn, #favs-btn, #fs-btn, #settings-btn, #stage-view-slot {
+  #favs-btn, #fs-btn, #settings-btn, #stage-view-slot {
     position: absolute;
     bottom: var(--edge-gap);
   }
@@ -317,8 +299,6 @@
   #stage-view-slot > #stage-view-btn { position: static; flex: 0 0 auto; }
   #stage-view-btn svg { width: 92px; height: 92px; }
   #favs-btn { right: var(--slot-3); }
-  #disco-btn { right: var(--slot-4); }
-  #camping-btn { right: var(--slot-5); }
   #right-btns .top-btn, #right-btns .color-btn, #right-btns .color-option { pointer-events: auto; }
   #bottom-bar .bottom-btn {
     pointer-events: auto;
@@ -459,15 +439,13 @@
 
   .content > .top-bar,
   .content > #status-box,
-  .content > #stage-row,
-  .content > #tl {
+  .content > .schedule-scroll {
     transform: translateY(var(--peek-y, 0px));
     transition: transform 0.18s ease-out;
   }
   body.peek-dragging .content > .top-bar,
   body.peek-dragging .content > #status-box,
-  body.peek-dragging .content > #stage-row,
-  body.peek-dragging .content > #tl {
+  body.peek-dragging .content > .schedule-scroll {
     transition: none;
     will-change: transform;
   }
@@ -934,7 +912,7 @@ html[data-viewport="phone"] .content {
 html[data-viewport="phone"] .day-item { font-size: 28px; }
 html[data-viewport="phone"] .day-item.active { font-size: 48px; }
 html[data-viewport="phone"] #bottom-bar { padding-bottom: env(safe-area-inset-bottom, 0px); }
-html[data-viewport="phone"] .schedule-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+html[data-viewport="phone"] .schedule-scroll { overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
 body.phone-scroll { overflow-y: auto; overflow-x: hidden; height: auto; min-height: 100dvh; }
 #help-overlay { position: fixed; inset: 0; z-index: 10000; background: rgba(0,0,0,0.92); display: flex; align-items: center; justify-content: center; padding: 24px; }
 #help-overlay[hidden] { display: none; }

@@ -540,13 +540,6 @@ function precomputeNormalDayTextLayouts(finalDayKey) {
       updateActTextLayout();
       cacheActTextStyles(dayKey + '|secondary');
     }
-
-    if (hasCampingStage(dayKey)) {
-      secondaryStagesMode = false;
-            renderDay(dayKey);
-      updateActTextLayout();
-      cacheActTextStyles(dayKey + '|camping');
-    }
   });
 
   const currentDay = getCurrentFestivalDay();
@@ -566,7 +559,8 @@ function precomputeNormalDayTextLayouts(finalDayKey) {
     actTextLayoutsPrecomputeRemaining = false;
   }
 
-  secondaryStagesMode = savedSecondaryMode;  actTextLayoutsPrecomputing = false;
+  secondaryStagesMode = savedSecondaryMode;
+  actTextLayoutsPrecomputing = false;
   actTextLayoutsPrecomputeRemaining = false;
   normalActTextLayoutsReady = true;
   setActiveDay(safeFinalDay);
@@ -708,31 +702,12 @@ function getActsFromOverrides(dayKey, stageName, entries = Object.entries(overri
     .sort((a, b) => a.start - b.start);
 }
 
-function discoActColor(div) {
-  if (div.classList.contains('act-disco-r')) return DISCO_STAGE_META.DiscoR.color;
-  if (div.classList.contains('act-disco-b')) return DISCO_STAGE_META.DiscoB.color;
-  if (div.classList.contains('act-disco-g')) return DISCO_STAGE_META.DiscoG.color;
+function discoActColor() {
   return null;
-}
-
-function isLockedRuneRaveAct(div) {
-  return div.querySelector('.act-name')?.textContent.trim() === 'RuneScape Rave'
-      && !document.body.classList.contains('runescape-active')
-      && !document.body.classList.contains('runescape-unlocked');
 }
 
 function setNormalSelectedActStyle(div) {
   clearNormalSelectedActStyle(div);
-  if (isLockedRuneRaveAct(div)) {
-    div.style.setProperty('--accent', accentColor);
-    div.style.setProperty('--accent-bg', accentBg);
-    div.style.setProperty('--accent-border', accentBorder);
-    div.style.setProperty('background', 'var(--selected-act-bg)', 'important');
-    div.style.setProperty('border-left-color', '#fff');
-    div.style.setProperty('border-top-color', 'var(--selected-act-top)', 'important');
-    div.style.setProperty('box-shadow', 'var(--selected-act-shadow)', 'important');
-    return;
-  }
   div.style.setProperty('--accent', accentColor);
   div.style.setProperty('--accent-bg', accentBg);
   div.style.setProperty('--accent-border', accentBorder);
@@ -743,7 +718,7 @@ function setNormalSelectedActStyle(div) {
     div.style.setProperty('box-shadow', 'var(--current-act-shadow)', 'important');
     return;
   }
-  const isFSSun = document.body.classList.contains('is-fullscreen') && document.body.classList.contains('sun-mode') && !document.body.classList.contains('disco-mode');
+  const isFSSun = document.body.classList.contains('is-fullscreen') && document.body.classList.contains('sun-mode');
   div.style.setProperty('background', isFSSun ? '#ffffff' : 'var(--selected-act-bg)', 'important');
   div.style.setProperty('background-color', isFSSun ? '#ffffff' : 'var(--selected-act-bg)', 'important');
   div.style.setProperty('border-left-color', isFSSun ? '#000000' : accentBorder, 'important');
@@ -952,8 +927,6 @@ function applySheetCsv(text) {
 function rerenderSchedule() {
   if (profileMode) {
     renderProfile();
-  } else if (false) {
-    queueActTextLayout();
   } else if (favsOnly) {
     renderFavsMode(normalDayKey);
   } else if (!normalActTextLayoutsReady) {
@@ -962,7 +935,7 @@ function rerenderSchedule() {
     renderDay(normalDayKey);
   }
   updateNowLine();
-  }
+}
 
 async function refreshSheetInBackground(cachedText) {
   const text = await fetchSheetCsv();
@@ -1034,6 +1007,45 @@ async function loadOverrides() {
   setSheetStatus('online');
 }
 
+
+function makeDay(startHour, endHour, stages) {
+  return {
+    gridCols: `60px ${'1fr '.repeat(stages.length).trim()}`,
+    startHour,
+    endHour,
+    stages: makeStageList(stages),
+  };
+}
+
+const DAYS = {
+  jeudi: makeDay(18, 25, [
+    ['Dome', 'By Radar'],
+    ['Church'],
+    ['Tunnel', 'Dubstep NL × Space Invaderz'],
+  ]),
+  vendredi: makeDay(14, 25, [
+    ['Mainstage', 'By MHITR'],
+    ['Storm', 'By DMZ'],
+    ['Dome', 'By RUN'],
+    ['Church', 'By Vision'],
+    ['Tunnel', 'By Vissa'],
+  ]),
+  samedi: makeDay(14, 25, [
+    ['Mainstage', 'By Rampage Recordings'],
+    ['Storm', 'By Blacklist'],
+    ['Dome', 'By Crucast'],
+    ['Church', 'World Of Drum&Bass 35Y'],
+    ['Tunnel', 'By Hardstyle Daily'],
+  ]),
+  dimanche: makeDay(14, 25, [
+    ['Mainstage', 'By Monstercat'],
+    ['Storm', 'By Dubstep FBI'],
+    ['Dome', 'By Club Mozey'],
+    ['Church', 'By Ampere Invites'],
+    ['Tunnel', 'By Unfaced'],
+  ]),
+};
+
 function getPrimaryStages(dayKey) {
   return (DAYS[dayKey] && DAYS[dayKey].stages) || [];
 }
@@ -1073,17 +1085,18 @@ function getStageViewCycleStages(dayKey) {
 }
 
 function getCurrentStageViewState() {
-  return false ? 'camping' : secondaryStagesMode ? 'secondary' : 'primary';
+  return secondaryStagesMode ? 'secondary' : 'primary';
 }
 
 function setStageViewState(state) {
-  secondaryStagesMode = state === 'secondary';}
+  secondaryStagesMode = state === 'secondary';
+}
 
 function getStageGroup(stageName) {
   const norm = String(stageName || '').trim().toLowerCase();
   if (!norm) return null;
-  if (norm === 'discor' || norm === 'discob' || norm === 'discog') return 'disco';
-  if (norm === 'camping') return false ? 'camping' : null;
+  if (norm === 'discor' || norm === 'discob' || norm === 'discog') return null;
+  if (norm === 'camping') return null;
   const isSecondary = Object.values(SECONDARY_STAGES_BY_DAY)
     .some(stages => stages.some(stage => stage.name.toLowerCase() === norm));
   if (isSecondary) return 'secondary';
@@ -1092,9 +1105,7 @@ function getStageGroup(stageName) {
 }
 
 function getVisibleStageGroup() {
-  if (false) return 'disco';
   const plainScheduleView = !profileMode && !favsOnly;
-  if (false && plainScheduleView) return 'camping';
   if (secondaryStagesMode && plainScheduleView) return 'secondary';
   if (plainScheduleView) return 'primary';
   return 'other';
@@ -1117,7 +1128,6 @@ function getSelectedNormalNoticeGroups(favs = getFavs(), overrideEntries = Objec
   const stages = [
     ...getPrimaryStages(dayKey),
     ...getSecondaryStages(dayKey),
-    ...(false ? [] : []),
   ];
 
   stages.forEach(stage => {
@@ -1131,33 +1141,8 @@ function getSelectedNormalNoticeGroups(favs = getFavs(), overrideEntries = Objec
   return groups;
 }
 
-function getSelectedDiscoNoticeGroups(favs = getFavs()) {
-  const groups = new Set();
-  if (!false || !false) return groups;
-
-  const state = getCurrentDiscoState();
-  if (!state.active || !state.dayKey) return groups;
-
-  const p = getFestivalParts();
-  let hour = p.hour + p.minute / 60 + p.second / 3600;
-  if (hour < 6) hour += 24;
-
-  const acts = getDiscoActs(state.dayKey);
-  const hasSelectedInWindow = Object.entries(DISCO_STAGE_META).some(([stageName]) =>
-    (acts[stageName] || []).some(act =>
-      isActFavorite(favs, state.dayKey, stageName, act) && isActInCrossSceneNoticeWindow(act, hour)
-    )
-  );
-
-  if (hasSelectedInWindow) groups.add('disco');
-  return groups;
-}
-
 function getSelectedCrossSceneNoticeGroups(favs = getFavs()) {
-  return new Set([
-    ...getSelectedNormalNoticeGroups(favs),
-    ...getSelectedDiscoNoticeGroups(favs),
-  ]);
+  return getSelectedNormalNoticeGroups(favs);
 }
 
 function setCrossSceneIndicator(btn, active) {
@@ -1169,12 +1154,10 @@ function setCrossSceneIndicator(btn, active) {
 function updateCrossSceneIndicators() {
   const groups = getSelectedCrossSceneNoticeGroups();
   const currentGroup = getVisibleStageGroup();
-  const hasOtherScheduleGroup = ['primary', 'secondary', 'camping']
+  const hasOtherScheduleGroup = ['primary', 'secondary']
     .some(group => groups.has(group) && group !== currentGroup);
-  const hasOtherDiscoGroup = groups.has('disco') && currentGroup !== 'disco';
 
   setCrossSceneIndicator($('stage-view-btn'), hasOtherScheduleGroup);
-  setCrossSceneIndicator($('disco-btn'), hasOtherDiscoGroup);
 }
 
 function makeStageGridCols(stages) {
@@ -1371,7 +1354,7 @@ function isNowSummaryStage(stageName) {
   const norm = String(stageName || '').trim().toLowerCase();
   if (!norm || norm === 'info') return false;
   if (norm === 'discor' || norm === 'discob' || norm === 'discog') return false;
-  if (norm === 'camping' && !false) return false;
+  if (norm === 'camping') return false;
   return true;
 }
 
@@ -1513,11 +1496,11 @@ function syncFavoriteControlsAfterActToggle(oldFavs, newFavs, dayKey) {
     return;
   }
 
-  if (!false && !false && oldDayVisible !== newDayVisible) updateFavsBtn();
+  if (oldDayVisible !== newDayVisible) updateFavsBtn();
 }
 
 function syncFavoritesModeAfterActToggle(div, selected, oldFavs, newFavs) {
-  if (!favsOnly || false || false) return;
+  if (!favsOnly) return;
 
   const oldSignature = getFavLayoutSignature(normalDayKey, oldFavs);
   const newSignature = getFavLayoutSignature(normalDayKey, newFavs);
@@ -1567,7 +1550,7 @@ function addActBehavior(div) {
     updateCrossSceneIndicators();
 
     if (!document.body.classList.contains('is-fullscreen')) {
-      updateNowSummary(getFestivalHour(false ? 6 : 2));
+      updateNowSummary(getFestivalHour(2));
     }
 
     syncFavoriteControlsAfterActToggle(oldFavs, newFavs, normalDayKey);
@@ -1623,11 +1606,8 @@ function getFavStageActs(dayKey, favs = getFavs(), overrideEntries = Object.entr
     .slice(0, 5);
 }
 
-function getFavRenderActs(dayKey, stageName, favoriteActs, startHour, endHour, overrideEntries = Object.entries(overrides)) {
-  if (!showFavFillActs) return favoriteActs;
-  return getActsFromOverrides(dayKey, stageName, overrideEntries)
-    .filter(act => act.start >= startHour && act.end <= endHour)
-    .sort((a, b) => a.start - b.start);
+function getFavRenderActs(dayKey, stageName, favoriteActs) {
+  return favoriteActs;
 }
 
 function getFavDays(favs = getFavs()) {
@@ -1639,12 +1619,10 @@ function updateFavDayVisibility(favDays = getFavDays()) {
   const allowed = new Set(profileEnabledDays);
   const base = DAY_KEYS.filter(d => allowed.has(d));
   const visible = new Set(favsOnly ? favDays.filter(d => allowed.has(d)) : base);
-  const hideSecondaryUnavailableDay = secondaryStagesMode && !favsOnly && !false && !false && !profileMode;
-  const hideCampingUnavailableDay = false && !false && !favsOnly && !false && !false && !profileMode;
-  const hideCampingViewDay = false && !favsOnly && !false && !false && !profileMode;
+  const hideSecondaryUnavailableDay = secondaryStagesMode && !favsOnly && !profileMode;
   document.querySelectorAll('.day-item').forEach(el => {
     const dayKey = el.dataset.day;
-    const shouldHide = (hideSecondaryUnavailableDay && !hasSecondaryStages(dayKey)) || (hideCampingViewDay && !hasCampingStage(dayKey)) || hideCampingUnavailableDay;
+    const shouldHide = hideSecondaryUnavailableDay && !hasSecondaryStages(dayKey);
     el.style.display = visible.has(dayKey) && !shouldHide ? '' : 'none';
   });
 }
@@ -1660,7 +1638,7 @@ function renderFavsMode(preferredDay = normalDayKey) {
   updateFavDayVisibility();
   if (!dayKey) {
     favsOnly = false;
-    document.body.classList.remove('favs-only', 'camping-stage-mode');
+      document.body.classList.remove('favs-only');
     updateFavDayVisibility(DAY_KEYS);
     updateFavsBtn();
     const titleEl = document.querySelector('.label span');
@@ -1716,7 +1694,7 @@ function renderFavs(dayKey) {
   stageActs.forEach(({ stage, acts }) => {
     const col = document.createElement('div');
     col.className = 'stage-col';
-    const renderActs = getFavRenderActs(dayKey, stage.name, acts, startHour, endHour, overrideEntries)
+    const renderActs = getFavRenderActs(dayKey, stage.name, acts)
       .filter(act => !remainingActive || shouldShowActForCurrentView(dayKey, stage.name, act, favs));
     renderActs.forEach(act => {
       const div = createActElement({
@@ -1724,7 +1702,7 @@ function renderFavs(dayKey) {
         favId: makeActFavoriteId(dayKey, stage.name, act),
         legacyFavId: makeLegacyActId(dayKey, stage.name, act.start),
         name: act.name, start: act.start, end: act.end,
-        className: 'act' + (act.name === 'RuneScape Rave' ? ' act-runescape' : ''),
+        className: 'act',
         favs,
       });
       positionAct(div, act.start, act.end, startHour, endHour);
@@ -1747,23 +1725,19 @@ function renderDay(dayKey) {
   const overrideEntries = Object.entries(overrides);
 
   if (secondaryStagesMode && !hasSecondaryStages(dayKey)) secondaryStagesMode = false;
-  if (false && !hasCampingStage(dayKey))   if (false) secondaryStagesMode = false;
 
   document.body.classList.remove(...DAY_KEYS.map(d => 'day-' + d));
   document.body.classList.add('day-' + dayKey);
   document.body.classList.toggle('secondary-stages-mode', !!secondaryStagesMode);
-  document.body.classList.toggle('camping-stage-mode', !!false);
   const stages = getNormalViewStages(dayKey);
   const actsByStage = stages.map(stage => ({
     stage,
     acts: getActsFromOverrides(dayKey, stage.name, overrideEntries)
-      .filter(act => false || shouldShowActForCurrentView(dayKey, stage.name, act, favs)),
+      .filter(act => shouldShowActForCurrentView(dayKey, stage.name, act, favs)),
   }));
-  const remainingActive = !false && isRemainingModeActiveForDay(dayKey);
+  const remainingActive = isRemainingModeActiveForDay(dayKey);
   const allVisibleActs = actsByStage.flatMap(s => s.acts);
-  const timeWindow = false
-    ? { startHour: CAMPING_STAGE_HOURS.start, endHour: CAMPING_STAGE_HOURS.end, axisEndHour: CAMPING_STAGE_HOURS.end, scaleHours: CAMPING_STAGE_HOURS.end - CAMPING_STAGE_HOURS.start }
-    : remainingActive
+  const timeWindow = remainingActive
       ? getRemainingTimelineWindow(day, allVisibleActs)
       : { startHour: day.startHour, endHour: day.endHour, axisEndHour: day.endHour, scaleHours: day.endHour - day.startHour };
   const { startHour, endHour, axisEndHour, scaleHours } = timeWindow;
@@ -1771,7 +1745,7 @@ function renderDay(dayKey) {
   setScheduleGrid(stageRow, tl, makeStageGridCols(stages));
   setTimelineWindow(tl, startHour, endHour);
 
-  const layoutKey = dayKey + (false ? '|camping' : secondaryStagesMode ? '|secondary' : '|primary') + (remainingActive ? '|remaining' : '');
+  const layoutKey = dayKey + (secondaryStagesMode ? '|secondary' : '|primary') + (remainingActive ? '|remaining' : '');
   const stageFrag = buildStageHeaderFragment(stages, s => buildStageHeader(s.name, s.sub));
   const axisFrag = buildAxisFragment(startHour, axisEndHour, scaleHours);
   const timelineFrag = document.createDocumentFragment();
@@ -1788,7 +1762,7 @@ function renderDay(dayKey) {
         name: act.name,
         start: act.start,
         end: act.end,
-        className: 'act' + (act.name === 'RuneScape Rave' ? ' act-runescape' : ''),
+        className: 'act',
         favs,
         layoutKey,
         alwaysShowTime: false,
@@ -1806,38 +1780,12 @@ function renderDay(dayKey) {
   updateResetBtn();
 }
 
-function getDiscoActs(dayKey) {
-  const result = { DiscoR: [], DiscoB: [], DiscoG: [] };
-
-  Object.entries(overrides).forEach(([key, ov]) => {
-    const [d, stage, startStr] = key.split('|');
-    if (d !== dayKey) return;
-
-    const norm = stage.toLowerCase();
-    const bucket = norm === 'discor' ? 'DiscoR' : norm === 'discob' ? 'DiscoB' : norm === 'discog' ? 'DiscoG' : null;
-    if (!bucket) return;
-
-    const rawStart = parseFloat(startStr);
-    if (!Number.isFinite(rawStart)) return;
-    const rawEnd = typeof ov.end === 'number' ? ov.end : rawStart + 1;
-    result[bucket].push({
-      name: ov.name || '',
-      start: rawStart < 6 ? rawStart + 24 : rawStart,
-      end: rawEnd < 6 ? rawEnd + 24 : rawEnd,
-      stableId: ov.stableId || '',
-    });
-  });
-
-  Object.values(result).forEach(list => list.sort((a, b) => a.start - b.start));
-  return result;
-}
-
 
 
 function updateFavsBtn() {
   const btn = $('favs-btn');
   if (!btn) return;
-  const show = favsOnly || (!false && !false && getFavDays().includes(normalDayKey));
+  const show = favsOnly || getFavDays().includes(normalDayKey);
   btn.style.display = 'flex';
   btn.style.visibility = show ? 'visible' : 'hidden';
   btn.style.pointerEvents = show ? 'auto' : 'none';
@@ -1847,17 +1795,17 @@ function updateFavsBtn() {
 function updateResetBtn() {
   const wrap = $('reset-wrap');
   const hasFavs = getFavs().length > 0;
-  const hasProfileChange = !false || !false || !profileDancefloorEnabled
+  const hasProfileChange = !profileDancefloorEnabled
     || sunAutoMode || !showRemainingOnly || fsRemainingOnly || !showFavFillActs
     || !fsShowTitles || !fsShowDay || !fsShowDate
     || DAY_KEYS.some(d => !profileEnabledDays.includes(d));
   if (wrap) wrap.style.display = (hasFavs || hasProfileChange) ? 'block' : 'none';
   if (!hasFavs && favsOnly) {
     favsOnly = false;
-    document.body.classList.remove('favs-only', 'camping-stage-mode');
+      document.body.classList.remove('favs-only');
     updateFavDayVisibility(DAY_KEYS);
     updateFavsBtn();
-    if (!false && !false) renderDay(normalDayKey);
+    if (!profileMode && !favsOnly) renderDay(normalDayKey);
   }
   updateFavsBtn();
 }
@@ -1933,7 +1881,6 @@ function getRemainingTimelineWindow(day, acts) {
 }
 
 function shouldShowActForCurrentView(dayKey, stageName, act, favs, cutoffHour = REMAINING_DAY_CUTOFF_HOUR, dayMap = FESTIVAL_DAYS) {
-  if (dayMap === DISCO_DAYS) return true;
   const cutoff = getRemainingCutoffForDay(dayKey, cutoffHour, dayMap);
   if (cutoff === null) return true;
   const start = Number(act && act.start);
@@ -2050,114 +1997,13 @@ function updateNowLine() {
 
   updateNowSummary();
 
-  if (false || profileMode) {
+  if (profileMode) {
     resetTimelineScrollTransform();
     if (existing) existing.remove();
     document.querySelectorAll('.act').forEach(act => {
       act.classList.remove('act-now', 'act-past');
     });
     updateStageHeaderSelectionState();
-    updateCrossSceneIndicators();
-    return;
-  }
-
-  if (false) {
-    resetTimelineScrollTransform();
-    const renderedDay = document.querySelector('.day-item.active')?.dataset.day;
-    if (renderedDay && renderedDay !== getDiscoDay()) {
-      if (existing) existing.remove();
-      updateNowSummary();
-      document.querySelectorAll('.act').forEach(act => {
-        act.classList.remove('act-now', 'act-past');
-      });
-      updateStageHeaderSelectionState();
-      updateCrossSceneIndicators();
-      return;
-    }
-    const p = getFestivalParts();
-    const inFestival = p.year === 2026 && p.monthIndex === 6 && (((p.day === 4 || p.day === 5) && p.hour < 6) || (p.day === 6 && p.hour < 5));
-    let h = p.hour + p.minute / 60 + p.second / 3600;
-    if (h < 6) h += 24;
-    if (!inFestival || h < discoHours.start || h >= discoHours.end) {
-      if (existing) existing.remove();
-      updateNowSummary();
-      document.querySelectorAll('.act').forEach(act => {
-        act.classList.remove('act-now');
-        act.classList.remove('act-past');
-      });
-      updateStageHeaderSelectionState();
-      updateCrossSceneIndicators();
-      return;
-    }
-    const totalMin = (discoHours.end - discoHours.start) * 60;
-    const topPct   = ((h - discoHours.start) * 60) / totalMin * 100;
-    const line = existing || document.createElement('div');
-    line.id = 'now-line';
-    if (!existing) {
-      Object.assign(line.style, { position: 'absolute', left: NOW_LINE_LEFT_PX + 'px', right: NOW_LINE_RIGHT_PX + 'px', height: '6px', background: 'var(--accent)', boxShadow: '0 0 16px var(--accent), 0 0 0 1px rgba(255,255,255,0.65)', zIndex: '0', pointerEvents: 'none', transform: 'translateY(-50%)' });
-      tl.appendChild(line);
-    }
-    line.style.height = '6px';
-    line.style.transform = 'translateY(-50%)';
-    line.style.boxShadow = '0 0 16px var(--accent), 0 0 0 1px rgba(255,255,255,0.65)';
-    line.style.top = topPct + '%';
-    document.querySelectorAll('.act').forEach(act => {
-      const s = parseFloat(act.dataset.start), e = parseFloat(act.dataset.end);
-      act.classList.toggle('act-now',  h >= s && h < e);
-      act.classList.toggle('act-past', h >= e);
-    });
-    updateNowSummary(h);
-    updateCrossSceneIndicators();
-    return;
-  }
-
-  if (false) {
-    resetTimelineScrollTransform();
-    const renderedDay = document.querySelector('.day-item.active')?.dataset.day;
-    const festivalDayForCamping = getCurrentFestivalDay();
-    const h = getFestivalHour(2);
-    const validDay = renderedDay && renderedDay === festivalDayForCamping && hasCampingStage(renderedDay);
-    const inCampingHours = h >= CAMPING_STAGE_HOURS.start && h < CAMPING_STAGE_HOURS.end;
-
-    if (!validDay || !inCampingHours) {
-      if (existing) existing.remove();
-      document.querySelectorAll('.act').forEach(act => {
-        const e = parseFloat(act.dataset.end);
-        act.classList.toggle('act-past', validDay && Number.isFinite(e) && h >= e);
-        act.classList.remove('act-now');
-      });
-      updateStageHeaderSelectionState();
-      updateNowSummary(h);
-      updateCrossSceneIndicators();
-      return;
-    }
-
-    const totalMin = (CAMPING_STAGE_HOURS.end - CAMPING_STAGE_HOURS.start) * 60;
-    const topPct = ((h - CAMPING_STAGE_HOURS.start) * 60) / totalMin * 100;
-    const line = existing || document.createElement('div');
-    line.id = 'now-line';
-    if (!existing) {
-      Object.assign(line.style, {
-        position: 'absolute', left: NOW_LINE_LEFT_PX + 'px', right: NOW_LINE_RIGHT_PX + 'px',
-        height: '6px', background: 'var(--accent)',
-        boxShadow: '0 0 16px var(--accent), 0 0 0 1px rgba(255,255,255,0.65)',
-        zIndex: '0', pointerEvents: 'none', transform: 'translateY(-50%)'
-      });
-      tl.appendChild(line);
-    }
-    line.style.height = '6px';
-    line.style.transform = 'translateY(-50%)';
-    line.style.boxShadow = '0 0 16px var(--accent), 0 0 0 1px rgba(255,255,255,0.65)';
-    line.style.top = topPct + '%';
-
-    document.querySelectorAll('.act').forEach(act => {
-      const s = parseFloat(act.dataset.start);
-      const e = parseFloat(act.dataset.end);
-      act.classList.toggle('act-now', h >= s && h < e);
-      act.classList.toggle('act-past', h >= e);
-    });
-    updateStageHeaderSelectionState();
-    updateNowSummary(h);
     updateCrossSceneIndicators();
     return;
   }
@@ -2285,17 +2131,13 @@ function waitForActLayoutFontsReady(timeoutMs = 3000) {
   ]);
 }
 
-document.addEventListener('DOMContentLoaded', () => {  const _curFestDay = getCurrentFestivalDay();
+document.addEventListener('DOMContentLoaded', () => {
+  const _curFestDay = getCurrentFestivalDay();
   normalDayKey = _curFestDay || 'jeudi';
-  discoDayKey   = getDiscoDay();
-  campingDayKey = normalDayKey;
-  favsOnly      = false;
+  favsOnly = false;
   secondaryStagesMode = false;
-    if (false) secondaryStagesMode = false;
   profileEnabledDays = JSON.parse(localStorage.getItem('profileEnabledDays') || '["jeudi","vendredi","samedi","dimanche"]');
   profileDancefloorEnabled = localStorage.getItem('profileDancefloor') !== '0';
-
-  if (false)  document.body.classList.add('disco-mode');
   if (favsOnly)   document.body.classList.add('favs-only');
 
   try {
@@ -2333,7 +2175,6 @@ document.addEventListener('DOMContentLoaded', () => {  const _curFestDay = getCu
     document.body.style.opacity = '1';
     document.documentElement.classList.add('page-revealed');
   }
-  setTimeout(revealPage, 4000);
 
   loadOverrides().then(() => {
     const normalMode = !sheetLoadFailed && !favsOnly;
@@ -2430,18 +2271,12 @@ document.addEventListener('DOMContentLoaded', () => {  const _curFestDay = getCu
       const selectedDay = el.dataset.day;
       if (!favsOnly) {
         if (secondaryStagesMode && !hasSecondaryStages(selectedDay)) return;
-        if (false && !hasCampingStage(selectedDay)) return;
       }
       if (profileMode) {
         profileMode = false;
         document.body.classList.remove('profile-mode');
         updateProfileBtn();
         setTitle('Rampage Open Air 2026');
-      }
-if (false) {
-        campingDayKey = selectedDay;
-        setActiveDay(campingDayKey);
-        return;
       }
       normalDayKey = selectedDay;
       setActiveDay(normalDayKey);
@@ -2622,16 +2457,543 @@ if (false) {
   }
 
   function applyLanguageUI() {
-  document.querySelectorAll('.day-item').forEach(el => { el.textContent = el.dataset.label || el.textContent; });
-  const active = document.querySelector('.day-item.active');
-  if (active && $('current-date')) $('current-date').textContent = active.dataset.date || '';
-}
+    document.querySelectorAll('.day-item').forEach(el => { el.textContent = el.dataset.label || el.textContent; });
+    const active = document.querySelector('.day-item.active');
+    if (active && $('current-date')) $('current-date').textContent = active.dataset.date || '';
+  }
 
-function refreshFullscreenState() {
-  updateEasterVisualBoost();
-  updateNowLine();
-  syncFullscreenSunActStyles();
-}
+  applyLanguageUI();
+
+  fsShowTitles = localStorage.getItem('fsShowTitles') !== '0';
+  fsShowDay = localStorage.getItem('fsShowDay') !== '0';
+  fsShowDate = localStorage.getItem('fsShowDate') !== '0';
+  sunAutoMode = localStorage.getItem('sunAutoMode') === '1';
+  showRemainingOnly = localStorage.getItem('showRemainingOnly') !== '0';
+  fsRemainingOnly = localStorage.getItem('fsRemainingOnly') === '1';
+  showFavFillActs = localStorage.getItem('showFavFillActs') !== '0';
+  document.body.classList.toggle('remaining-only', showRemainingOnly);
+
+  function applyFullscreenVisibilityPrefs() {
+    document.body.classList.toggle('fs-hide-titles', !fsShowTitles);
+    document.body.classList.toggle('fs-hide-day', !fsShowDay);
+    document.body.classList.toggle('fs-hide-date', !fsShowDate);
+  }
+  applyFullscreenVisibilityPrefs();
+
+  function isPlainScheduleView() {
+    return !profileMode && !favsOnly;
+  }
+
+  function getNextStageViewState() {
+    const activeDay = document.querySelector('.day-item.active')?.dataset.day || normalDayKey;
+    const cycle = getStageViewCycleStages(activeDay);
+    const current = getCurrentStageViewState();
+    return cycle[(Math.max(0, cycle.indexOf(current)) + 1) % cycle.length] || 'primary';
+  }
+
+  function getStageViewIconSvg(targetState) {
+    const bars = {
+      primary: [
+        { x: 2, width: 2.8 }, { x: 6.3, width: 2.8 }, { x: 10.6, width: 2.8 },
+        { x: 14.9, width: 2.8 }, { x: 19.2, width: 2.8 },
+      ],
+      secondary: [
+        { x: 3, width: 5 }, { x: 9.5, width: 5 }, { x: 16, width: 5 },
+      ],
+    }[targetState] || [
+      { x: 3, width: 5 }, { x: 9.5, width: 5 }, { x: 16, width: 5 },
+    ];
+    const rects = bars.map(bar => `<rect x="${bar.x}" y="4" width="${bar.width}" height="16" rx="1"/>`).join('');
+    return `<svg width="92" height="92" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${rects}</svg>`;
+  }
+
+  function updateStageViewIcon(btn, targetState) {
+    if (!btn || btn.dataset.stageIconTarget === targetState) return;
+    btn.dataset.stageIconTarget = targetState;
+    btn.innerHTML = getStageViewIconSvg(targetState);
+  }
+
+  function getStageViewTargetLabel() {
+    const next = getNextStageViewState();
+    return next === 'secondary' ? 'Secondary stages' : 'Main stages';
+  }
+
+  function updateStageViewBtn() {
+    const btn = $('stage-view-btn');
+    if (!btn) return;
+    const inSchedule = isPlainScheduleView();
+    const activeDay = document.querySelector('.day-item.active')?.dataset.day || normalDayKey;
+    const cycle = getStageViewCycleStages(activeDay);
+    const hasExtraView = cycle.length > 1;
+    const canUseStageView = inSchedule && hasExtraView;
+    if (inSchedule && !hasExtraView) setStageViewState('primary');
+    const currentState = getCurrentStageViewState();
+    const isExtraView = canUseStageView && currentState !== 'primary';
+    document.body.classList.toggle('secondary-stages-mode', canUseStageView && secondaryStagesMode);
+    setUtilityButtonState(btn, canUseStageView, isExtraView);
+    updateCrossSceneIndicators();
+    btn.disabled = inSchedule && !hasExtraView;
+    btn.setAttribute('aria-disabled', btn.disabled ? 'true' : 'false');
+    const targetState = getNextStageViewState();
+    updateStageViewIcon(btn, targetState);
+    const label = getStageViewTargetLabel();
+    btn.setAttribute('aria-label', label);
+    btn.title = label;
+  }
+
+  function applyProfileState() {
+    updateStageViewBtn();
+  }
+
+  function toggleStoredFlag(key, value) {
+    localStorage.setItem(key, value ? '1' : '0');
+  }
+
+  function renderProfile() {
+    const stageRow = $('stage-row'), tl = $('tl'), axis = $('axis');
+    clearSchedule(stageRow, axis, tl);
+    setScheduleGrid(stageRow, tl, '60px 1fr');
+    stageRow.appendChild(buildStageHeaderFragment([{ name: getSettingsTitle(), sub: '' }], s => buildStageHeader(s.name, s.sub)));
+
+    const col = document.createElement('div');
+    col.className = 'stage-col profile-mode-col';
+
+    const makeBtn = (className, action, text, active, disabled = false) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = className + (active ? ' active' : '') + (disabled ? ' feat-disabled' : '');
+      btn.dataset.profileAction = action;
+      btn.textContent = text;
+      btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+      if (disabled) { btn.disabled = true; btn.setAttribute('aria-disabled', 'true'); }
+      return btn;
+    };
+    const makeSection = (titleText, rows) => {
+      const section = document.createElement('div');
+      section.className = 'profile-mode-section';
+      const title = document.createElement('div');
+      title.className = 'profile-mode-section-title';
+      title.textContent = titleText;
+      section.append(title, ...rows);
+      col.appendChild(section);
+    };
+    const makeRow = (items, className = 'profile-mode-row') => {
+      const row = document.createElement('div');
+      row.className = className;
+      items.forEach(item => row.appendChild(makeBtn(...item)));
+      return row;
+    };
+
+    const dayLabels = { jeudi: 'THURSDAY', vendredi: 'FRIDAY', samedi: 'SATURDAY', dimanche: 'SUNDAY' };
+    makeSection('DISPLAY', [
+      makeRow(DAY_KEYS.map(day => ['profile-mode-day-btn', 'day-' + day, dayLabels[day], profileEnabledDays.includes(day)])),
+    ]);
+    makeSection('FULLSCREEN / WALLPAPER', [makeRow([
+      ['profile-mode-day-btn', 'fs-titles', 'TITLES', fsShowTitles],
+      ['profile-mode-day-btn', 'fs-day', 'DAY', fsShowDay],
+      ['profile-mode-day-btn', 'fs-date', 'DATE', fsShowDate],
+      ['profile-mode-day-btn profile-mode-choice-btn', 'fs-view', fsRemainingOnly ? 'UPCOMING' : 'FULL DAY', true],
+    ])]);
+    makeSection('DAY VIEW', [makeRow([
+      ['profile-mode-sun-btn profile-mode-choice-btn', 'remaining-view', showRemainingOnly ? 'UPCOMING' : 'FULL DAY', true],
+      ['profile-mode-sun-btn', 'fav-fill', showFavFillActs ? 'FILL' : 'ONLY', showFavFillActs],
+      ['profile-mode-sun-btn', 'sun-auto', 'AUTO (8AM-8PM)', sunAutoMode],
+    ])]);
+    makeSection('FILTERS', [makeRow([
+      ['profile-mode-day-btn', 'dancefloor', 'DANCEFLOOR', !profileDancefloorEnabled],
+    ])]);
+    makeSection('DATA', [makeRow([
+      ['profile-mode-update-btn', 'sheet-refresh', 'UPDATE', false],
+    ])]);
+
+    const statusEl = document.createElement('div');
+    statusEl.id = 'sheet-status';
+    statusEl.className = 'profile-mode-sheet-status';
+    col.appendChild(statusEl);
+    setSheetStatus();
+
+    tl.appendChild(col);
+    updateNowLine();
+  }
+
+  function handleProfileAction(btn) {
+    const action = btn.dataset.profileAction;
+    const rerender = () => renderProfile();
+    if (action === 'fs-titles') { fsShowTitles = !fsShowTitles; toggleStoredFlag('fsShowTitles', fsShowTitles); applyFullscreenVisibilityPrefs(); return rerender(); }
+    if (action === 'fs-day') { fsShowDay = !fsShowDay; toggleStoredFlag('fsShowDay', fsShowDay); applyFullscreenVisibilityPrefs(); return rerender(); }
+    if (action === 'fs-date') { fsShowDate = !fsShowDate; toggleStoredFlag('fsShowDate', fsShowDate); applyFullscreenVisibilityPrefs(); return rerender(); }
+    if (action === 'fs-view') { fsRemainingOnly = !fsRemainingOnly; toggleStoredFlag('fsRemainingOnly', fsRemainingOnly); return rerender(); }
+    if (action === 'remaining-view') {
+      showRemainingOnly = !showRemainingOnly;
+      toggleStoredFlag('showRemainingOnly', showRemainingOnly);
+      document.body.classList.toggle('remaining-only', showRemainingOnly);
+      return rerender();
+    }
+    if (action === 'fav-fill') { showFavFillActs = !showFavFillActs; toggleStoredFlag('showFavFillActs', showFavFillActs); return rerender(); }
+    if (action === 'sun-auto') {
+      sunAutoMode = !sunAutoMode;
+      toggleStoredFlag('sunAutoMode', sunAutoMode);
+      if (sunAutoMode) sunMode = getScheduledSunMode();
+      toggleStoredFlag('sunMode', sunMode);
+      applySunMode();
+      return rerender();
+    }
+    if (action === 'dancefloor') {
+      profileDancefloorEnabled = !profileDancefloorEnabled;
+      toggleStoredFlag('profileDancefloor', profileDancefloorEnabled);
+      btn.classList.toggle('active', !profileDancefloorEnabled);
+      btn.setAttribute('aria-pressed', !profileDancefloorEnabled ? 'true' : 'false');
+      if (!profileMode) rerenderSchedule();
+      return rerender();
+    }
+    if (action === 'sheet-refresh') {
+      if (sheetRefreshBusy) return;
+      refreshSheetManually();
+      return;
+    }
+    if (action.startsWith('day-')) {
+      const day = action.slice(4);
+      const idx = profileEnabledDays.indexOf(day);
+      if (idx === -1) profileEnabledDays.push(day);
+      else if (profileEnabledDays.length > 1) profileEnabledDays.splice(idx, 1);
+      profileEnabledDays.sort((a, b) => DAY_KEYS.indexOf(a) - DAY_KEYS.indexOf(b));
+      localStorage.setItem('profileEnabledDays', JSON.stringify(profileEnabledDays));
+      updateFavDayVisibility();
+      if (!profileEnabledDays.includes(normalDayKey)) {
+        const first = DAY_KEYS.find(d => profileEnabledDays.includes(d));
+        if (first) { normalDayKey = first; setActiveDay(first); }
+      }
+      applyProfileState();
+      return rerender();
+    }
+  }
+
+  function updateProfileBtn() {
+    setUtilityButtonState($('profile-btn'), true, profileMode);
+  }
+
+  applyProfileState();
+
+  const lightModeBtn = $('light-mode-btn');
+  function getScheduledSunMode() {
+    const hour = getFestivalParts().hour;
+    return hour >= 8 && hour < 20;
+  }
+  function resolveInitialSunMode() {
+    return sunAutoMode ? getScheduledSunMode() : localStorage.getItem('sunMode') === '1';
+  }
+  let sunMode = resolveInitialSunMode();
+  const applySunMode = () => {
+    document.body.classList.toggle('light-mode', sunMode);
+    document.body.classList.toggle('sun-mode', sunMode);
+    setUtilityButtonState(lightModeBtn, true, sunMode);
+    syncFullscreenSunActStyles();
+  };
+  applySunMode();
+  lightModeBtn?.addEventListener('click', e => {
+    e.stopPropagation();
+    sunMode = !sunMode;
+    localStorage.setItem('sunMode', sunMode ? '1' : '0');
+    applySunMode();
+    if (profileMode) renderProfile();
+  });
+
+  const colorBtn = $('color-btn');
+  const colorMenu = $('color-menu');
+  const updateColorMenuBtn = () => {
+    if (colorBtn) colorBtn.classList.toggle('control-active', colorMenu?.classList.contains('open'));
+  };
+  colorBtn?.addEventListener('click', e => {
+    e.stopPropagation();
+    colorMenu?.classList.toggle('open');
+    updateColorMenuBtn();
+  });
+
+  const settingsBtn = $('settings-btn');
+  const bottomBar = $('bottom-bar');
+  settingsBtn?.addEventListener('click', e => {
+    e.stopPropagation();
+    if (profileMode) {
+      profileMode = false;
+      document.body.classList.remove('profile-mode');
+      setTitle('Rampage Open Air 2026');
+      showDefaultDay();
+      updateProfileBtn();
+    }
+    const open = bottomBar.classList.toggle('settings-open');
+    settingsBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    $('settings-popover')?.setAttribute('aria-hidden', open ? 'false' : 'true');
+    if (!open) colorMenu?.classList.remove('open');
+    updateSettingsBtn();
+    updateColorMenuBtn();
+  });
+
+  document.addEventListener('click', e => {
+    const btn = e.target.closest('[data-profile-action]');
+    if (btn && document.body.classList.contains('profile-mode')) {
+      e.stopPropagation();
+      handleProfileAction(btn);
+    }
+  });
+
+  const profileBtn = $('profile-btn');
+  profileBtn?.addEventListener('click', e => {
+    e.stopPropagation();
+    profileMode = !profileMode;
+    document.body.classList.toggle('profile-mode', profileMode);
+    if (profileMode) {
+      bottomBar?.classList.remove('settings-open');
+      settingsBtn?.setAttribute('aria-expanded', 'false');
+      $('settings-popover')?.setAttribute('aria-hidden', 'true');
+      colorMenu?.classList.remove('open');
+      updateSettingsBtn();
+      updateColorMenuBtn();
+      if (favsOnly) { favsOnly = false; document.body.classList.remove('favs-only'); updateFavsBtn(); updateFavDayVisibility(); }
+      secondaryStagesMode = false;
+      updateStageViewBtn();
+      setTitle(getSettingsTitle());
+      renderProfile();
+    } else {
+      setTitle('Rampage Open Air 2026');
+      showDefaultDay();
+    }
+    updateProfileBtn();
+  });
+
+  const favsBtn = $('favs-btn');
+  favsBtn?.addEventListener('click', e => {
+    e.stopPropagation();
+    if (profileMode) { profileMode = false; document.body.classList.remove('profile-mode'); updateProfileBtn(); }
+    favsOnly = !favsOnly;
+    document.body.classList.toggle('favs-only', favsOnly);
+    secondaryStagesMode = false;
+    if (favsOnly) {
+      setTitle('FAVORITES');
+      renderFavsMode(normalDayKey);
+    } else {
+      setTitle('Rampage Open Air 2026');
+      updateFavDayVisibility();
+      renderDay(normalDayKey);
+    }
+    updateFavsBtn();
+    updateStageViewBtn();
+  });
+
+  const stageViewBtn = $('stage-view-btn');
+  stageViewBtn?.addEventListener('click', e => {
+    e.stopPropagation();
+    if (!isPlainScheduleView()) {
+      secondaryStagesMode = false;
+      favsOnly = false;
+      profileMode = false;
+      document.body.classList.remove('favs-only', 'profile-mode');
+      updateFavsBtn();
+      updateProfileBtn();
+      setTitle('Rampage Open Air 2026');
+      showDefaultDay();
+      return;
+    }
+    const cycle = getStageViewCycleStages(normalDayKey);
+    if (cycle.length < 2) { updateStageViewBtn(); return; }
+    const currentIndex = Math.max(0, cycle.indexOf(getCurrentStageViewState()));
+    setStageViewState(cycle[(currentIndex + 1) % cycle.length]);
+    setTitle('Rampage Open Air 2026');
+    const visibleDays = secondaryStagesMode
+      ? DAY_KEYS.filter(day => getStageViewCycleStages(day).includes('secondary'))
+      : DAY_KEYS;
+    updateFavDayVisibility(visibleDays);
+    if (secondaryStagesMode && !visibleDays.includes(normalDayKey)) {
+      normalDayKey = visibleDays[0] || 'vendredi';
+    }
+    setActiveDay(normalDayKey);
+    if (!normalActTextLayoutsReady) precomputeNormalDayTextLayouts(normalDayKey);
+    else renderDay(normalDayKey);
+    updateStageViewBtn();
+  });
+  document.addEventListener('favschange', () => { updateStageViewBtn(); updateCrossSceneIndicators(); });
+
+  document.addEventListener('click', () => {
+    colorMenu?.classList.remove('open');
+    updateColorMenuBtn();
+  });
+
+  function applyColorOption(opt) {
+    if (!opt) return;
+    accentColor = opt.dataset.accent;
+    accentBg = opt.dataset.bg;
+    accentBorder = opt.dataset.border;
+    colorMenu?.classList.remove('open');
+    updateColorMenuBtn();
+    applyAccentToElements();
+    syncColorOptions();
+    saveColorPreference(opt.dataset.glow);
+  }
+
+  document.querySelectorAll('.color-option').forEach(opt => {
+    opt.addEventListener('click', e => {
+      e.stopPropagation();
+      applyColorOption(opt);
+    });
+  });
+
+  function applyAccentToElements() {
+    setThemeVars();
+    syncColorOptions();
+    if (colorBtn) colorBtn.style.background = accentColor;
+    paintThemedButtons();
+    document.querySelectorAll('.label').forEach(el => el.style.color = accentColor);
+    const dlElA = $('days-left'); if (dlElA) dlElA.style.color = accentColor;
+    document.querySelectorAll('.stage-header').forEach(el => {
+      el.dataset.nameColor = accentColor;
+      el.style.borderTopColor = accentColor;
+    });
+    updateStageHeaderSelectionState();
+    document.querySelectorAll('.act.selected').forEach(el => { if (!discoActColor(el)) setNormalSelectedActStyle(el); });
+    const nl = $('now-line');
+    if (nl) { nl.style.background = accentColor; nl.style.boxShadow = `0 0 16px ${accentColor}, 0 0 0 1px rgba(255,255,255,0.65)`; }
+  }
+
+  let fullscreenZoom = 1;
+  let fullscreenPanX = 0;
+  let fullscreenPanY = 0;
+  let pinchStartDistance = 0;
+  let pinchStartZoom = 1;
+  let panStartX = 0;
+  let panStartY = 0;
+  let panStartTouchX = 0;
+  let panStartTouchY = 0;
+  let suppressNextExitClick = false;
+  let fullscreenBaseScale = 1;
+
+  function clampValue(value, min, max) {
+    return Math.max(min, Math.min(max, value));
+  }
+
+  function clampFullscreenZoom(value) {
+    return clampValue(value, 0.55, 1);
+  }
+
+  function touchDistance(touches) {
+    const dx = touches[0].clientX - touches[1].clientX;
+    const dy = touches[0].clientY - touches[1].clientY;
+    return Math.hypot(dx, dy);
+  }
+
+  function isPhoneLikeViewport(vw, vh) {
+    const portrait = vh > vw * 1.35;
+    const narrow = vw <= 560;
+    const mobileUA = /Android|iPhone|iPod|Mobile/i.test(navigator.userAgent || '');
+    const coarsePointer = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+    return portrait && (narrow || mobileUA || coarsePointer);
+  }
+
+  function isPhoneLikeFullscreenViewport(vw, vh) {
+    return isPhoneLikeViewport(vw, vh);
+  }
+
+  function applyFullscreenCapturePads(isFS, isPhoneCapture, virtualH) {
+    const root = document.documentElement;
+    if (!isFS || !isPhoneCapture) {
+      root.style.setProperty('--fs-pad-top', '25px');
+      root.style.setProperty('--fs-pad-right', '62px');
+      root.style.setProperty('--fs-pad-bottom', '100px');
+      root.style.setProperty('--fs-pad-left', '62px');
+      return;
+    }
+    const topPad = Math.round(clampValue(virtualH * 0.055, 90, 135));
+    const bottomPad = Math.round(clampValue(virtualH * 0.048, 95, 135));
+    const sidePad = 65;
+    root.style.setProperty('--fs-pad-top', topPad + 'px');
+    root.style.setProperty('--fs-pad-right', sidePad + 'px');
+    root.style.setProperty('--fs-pad-bottom', bottomPad + 'px');
+    root.style.setProperty('--fs-pad-left', sidePad + 'px');
+  }
+
+  function clampFullscreenPan(displayScale, vw, vh, virtualH = 1920) {
+    const scaledW = 1080 * displayScale;
+    const scaledH = virtualH * displayScale;
+    const maxX = Math.max(0, (scaledW - vw) / 2);
+    const maxY = Math.max(0, (scaledH - vh) / 2);
+    fullscreenPanX = Math.max(-maxX, Math.min(maxX, fullscreenPanX));
+    fullscreenPanY = Math.max(-maxY, Math.min(maxY, fullscreenPanY));
+  }
+
+  function applyScale() {
+    const scaler = $('scaler');
+    const vv = window.visualViewport;
+    const vw = (vv && vv.width) ? vv.width : window.innerWidth;
+    const vh = (vv && vv.height) ? vv.height : window.innerHeight;
+    const baseW = 1080;
+    const baseH = 1920;
+    const isPhone = isPhoneLikeViewport(vw, vh) && !document.body.classList.contains('is-fullscreen');
+    document.documentElement.dataset.viewport = isPhone ? 'phone' : 'desktop';
+    document.body.classList.toggle('phone-scroll', isPhone);
+
+    const viewportScale = isPhone
+      ? vw / baseW
+      : Math.min(vw / baseW, vh / baseH);
+    const isFS = document.body.classList.contains('is-fullscreen');
+    const phoneCaptureFS = isFS && isPhoneLikeFullscreenViewport(vw, vh);
+    let virtualH = baseH;
+    let displayScale = viewportScale;
+    let left = isPhone ? 0 : Math.max(CANVAS_MARGIN, (vw - baseW * displayScale) / 2);
+    let top = isPhone ? 0 : Math.max(CANVAS_MARGIN, (vh - baseH * displayScale) / 2);
+
+    if (!isFS) {
+      fullscreenBaseScale = viewportScale;
+      fullscreenPanX = 0;
+      fullscreenPanY = 0;
+    } else if (phoneCaptureFS) {
+      const phoneBaseScale = vw / baseW;
+      virtualH = Math.max(baseH, Math.ceil(vh / phoneBaseScale));
+      displayScale = phoneBaseScale * fullscreenZoom;
+      fullscreenPanX = 0;
+      fullscreenPanY = 0;
+      left = (vw - baseW * displayScale) / 2;
+      top = (vh - virtualH * displayScale) / 2;
+    } else {
+      const fsMaxScale = Math.min(fullscreenBaseScale, (vh - CANVAS_MARGIN * 2) / baseH, (vw - CANVAS_MARGIN * 2) / baseW);
+      displayScale = fsMaxScale * fullscreenZoom;
+      clampFullscreenPan(displayScale, vw, vh, baseH);
+      left = Math.max(CANVAS_MARGIN, (vw - baseW * displayScale) / 2) + fullscreenPanX;
+      top = Math.max(CANVAS_MARGIN, (vh - baseH * displayScale) / 2) + fullscreenPanY;
+    }
+
+    applyFullscreenCapturePads(isFS, phoneCaptureFS, virtualH);
+    scaler.style.width = baseW + 'px';
+    scaler.style.height = virtualH + 'px';
+    scaler.style.transform = `scale(${displayScale})`;
+    scaler.style.left = left + 'px';
+    scaler.style.top = top + 'px';
+    if (isPhone) scaler.style.touchAction = 'pan-y';
+    else scaler.style.touchAction = 'none';
+  }
+
+  function syncFullscreenSunActStyles() {
+    const forceNeutral = document.body.classList.contains('sun-mode')
+      && document.body.classList.contains('is-fullscreen');
+    document.querySelectorAll('.act:not(.selected)').forEach(act => {
+      if (forceNeutral) {
+        act.style.setProperty('background', '#ffffff', 'important');
+        act.style.setProperty('background-color', '#ffffff', 'important');
+        act.style.setProperty('background-image', 'none', 'important');
+        act.style.setProperty('opacity', '1', 'important');
+        act.style.setProperty('filter', 'none', 'important');
+        return;
+      }
+      act.style.removeProperty('background');
+      act.style.removeProperty('background-color');
+      act.style.removeProperty('background-image');
+      act.style.removeProperty('opacity');
+      act.style.removeProperty('filter');
+    });
+  }
+
+  function refreshFullscreenState() {
+    updateNowLine();
+    syncFullscreenSunActStyles();
+  }
+
 
   let responsiveLayoutRAF = 0;
   function queueResponsiveLayout() {
@@ -2821,14 +3183,13 @@ function refreshFullscreenState() {
 
       ['favs','color','helpSeen','sunMode','sunAutoMode','showRemainingOnly','fsRemainingOnly','showFavFillActs','fsShowTitles','fsShowDay','fsShowDate','profileDancefloor','profileEnabledDays'].forEach(k => localStorage.removeItem(k));
 
-      document.body.classList.remove('runescape-unlocked');
       document.querySelectorAll('.act.selected').forEach(el => {
         el.classList.remove('selected');
         clearNormalSelectedActStyle(el);
         el.style.borderLeftColor = '';
       });
 
-      applyColorOption(document.querySelector('.color-option'));manualLangEaster = null;
+      applyColorOption(document.querySelector('.color-option'));
       applyLanguageUI();
       updateDaysLeft();
 
@@ -2849,7 +3210,6 @@ function refreshFullscreenState() {
       updateFavDayVisibility();
 
       if (profileMode) { profileMode = false; document.body.classList.remove('profile-mode'); updateProfileBtn(); }
-      if (false)   { }
       if (favsOnly)    { favsOnly = false; document.body.classList.remove('favs-only'); updateFavsBtn(); }
       setTitle('Rampage Open Air 2026');
       showDefaultDay();
