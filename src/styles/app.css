@@ -487,11 +487,11 @@
 
   .time-axis { position: relative; overflow: visible; z-index: 2; }
   .tick-label {
-    position: absolute; left: 0; right: 6px;
+    position: absolute; left: 0; right: 5px;
     text-align: right;
     font-family: 'Share Tech Mono', 'Inter', monospace;
-    font-size: 29px; font-weight: 400;
-    color: var(--muted-time, #ffffff88); letter-spacing: 1px;
+    font-size: 19px; font-weight: 400;
+    color: var(--muted-time, #ffffff88); letter-spacing: 0.5px;
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
     transform: translateY(-50%);

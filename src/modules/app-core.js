@@ -20,8 +20,8 @@ let favsOnly = false;
 let infoData = {};
 let discoStyles = {};
 let sheetLoadFailed = false;
-let normalDayKey = 'jeudi';
-let profileEnabledDays = ['jeudi', 'vendredi', 'samedi', 'dimanche'];
+let normalDayKey = 'vendredi';
+let profileEnabledDays = ['vendredi', 'samedi', 'dimanche'];
 let profileDancefloorEnabled = true;
 let fsShowTitles = true;
 let fsShowDay = true;
@@ -31,8 +31,8 @@ let showRemainingOnly = false;
 let fsRemainingOnly = false;
 let showFavFillActs = true;
 
-const DAY_KEYS = ['jeudi', 'vendredi', 'samedi', 'dimanche'];
-const FESTIVAL_DAYS = { 2: 'jeudi', 3: 'vendredi', 4: 'samedi', 5: 'dimanche' };
+const DAY_KEYS = ['vendredi', 'samedi', 'dimanche'];
+const FESTIVAL_DAYS = { 3: 'vendredi', 4: 'samedi', 5: 'dimanche' };
 ;
 ;
 ;
@@ -59,7 +59,7 @@ const stagePriority = name => STAGE_ORDER[String(name || '').toLowerCase()] ?? 9
 const FS_STAGE_ABBREV = { 'Mainstage': 'Main' };
 const FAVS_KEY = 'favs';
 const TIMELINE_GAP = 8;
-const AXIS_COL_PX = 88;
+const AXIS_COL_PX = 62;
 const NOW_LINE_LEFT_PX = AXIS_COL_PX - 5;
 const PX_PER_HOUR_DESKTOP = 72;
 const PX_PER_HOUR_PHONE = 66;
@@ -67,7 +67,7 @@ const PHONE_FS_BASE_ZOOM = 1.2;
 const STAGE_COL_MIN_PX = 200;
 const STAGE_GRID_GAP_PX = 9;
 const VISIBLE_STAGE_COLS_DESKTOP = 3;
-const VISIBLE_STAGE_COLS_PHONE = 2;
+const VISIBLE_STAGE_COLS_PHONE = 3;
 const H_SCROLL_MIN_STAGES = 4;
 const NOW_LINE_RIGHT_PX = -15;
 const REMAINING_DAY_CUTOFF_HOUR = 1;
@@ -306,9 +306,9 @@ function getScheduleScrollWidth() {
 function getHScrollStageColPx() {
   const visible = getVisibleStageCols();
   const available = getScheduleScrollWidth();
-  const gaps = Math.max(0, visible - 1) * STAGE_GRID_GAP_PX;
+  const gaps = visible * STAGE_GRID_GAP_PX;
   const colPx = Math.floor((available - AXIS_COL_PX - gaps) / visible);
-  return Math.max(isPhoneScrollLayout() ? 140 : STAGE_COL_MIN_PX, colPx);
+  return Math.max(isPhoneScrollLayout() ? 88 : STAGE_COL_MIN_PX, colPx);
 }
 
 
@@ -333,7 +333,7 @@ function applyScheduleHorizontalLayout(stageRow, tl, columnCount) {
     return;
   }
   const colPx = getHScrollStageColPx();
-  const minWidth = AXIS_COL_PX + columnCount * colPx + Math.max(0, columnCount - 1) * STAGE_GRID_GAP_PX;
+  const minWidth = AXIS_COL_PX + columnCount * colPx + columnCount * STAGE_GRID_GAP_PX;
   const gridCols = makeAxisGridCols(columnCount);
   stageRow.style.gridTemplateColumns = gridCols;
   tl.style.gridTemplateColumns = gridCols;
@@ -715,13 +715,13 @@ function applyCachedActTextStyle(act, layoutKey = '') {
 
 function precomputeNormalDayTextLayouts(finalDayKey) {
   if (isScrollTimelineMode()) {
-    const safeFinalDay = finalDayKey || normalDayKey || 'jeudi';
+    const safeFinalDay = finalDayKey || normalDayKey || 'vendredi';
     normalActTextLayoutsReady = false;
     setActiveDay(safeFinalDay);
     renderDay(safeFinalDay);
     return;
   }
-  const safeFinalDay = finalDayKey || normalDayKey || 'jeudi';
+  const safeFinalDay = finalDayKey || normalDayKey || 'vendredi';
   cancelAnimationFrame(actTextLayoutRAF);
   actTextLayoutRAF = 0;
   actTextLayoutsPrecomputing = true;
@@ -1005,7 +1005,7 @@ function parseOverridesFromCsv(text) {
   const rows = (text || '').trim().split(/\r?\n/).map(parseCSVRow);
   if (!rows.length) return { overrides: parsed, infoData: parsedInfo, discoStyles: parsedStyles };
 
-  const dayNames = ['jeudi', 'vendredi', 'samedi', 'dimanche'];
+  const dayNames = ['vendredi', 'samedi', 'dimanche'];
   const normalizeDay = value => (value || '').trim().toLowerCase();
 
   rows.forEach(row => {
@@ -1232,11 +1232,6 @@ function makeDay(startHour, endHour, stages) {
 }
 
 const DAYS = {
-  jeudi: makeDay(18, 25, [
-    ['Dome', 'By Radar'],
-    ['Church'],
-    ['Tunnel', 'Dubstep NL × Space Invaderz'],
-  ]),
   vendredi: makeDay(14, 25, [
     ['Mainstage', 'By MHITR'],
     ['Storm', 'By DMZ'],
@@ -1265,7 +1260,7 @@ function getPrimaryStages(dayKey) {
 }
 
 function hasSecondaryStages(dayKey) {
-  return dayKey !== 'jeudi';
+  return true;
 }
 
 
@@ -2008,7 +2003,7 @@ function getCurrentFestivalDay() {
 
 
 function getDefaultDay() {
-  return getCurrentFestivalDay() || 'jeudi';
+  return getCurrentFestivalDay() || 'vendredi';
 }
 
 function getRemainingViewEnabledForCurrentRender() {
@@ -2339,9 +2334,9 @@ function bootApp() {
   if (booted) return;
   booted = true;
   const _curFestDay = getCurrentFestivalDay();
-  normalDayKey = _curFestDay || 'jeudi';
+  normalDayKey = _curFestDay || 'vendredi';
   favsOnly = false;
-  profileEnabledDays = JSON.parse(localStorage.getItem('profileEnabledDays') || '["jeudi","vendredi","samedi","dimanche"]');
+  profileEnabledDays = JSON.parse(localStorage.getItem('profileEnabledDays') || '["vendredi","samedi","dimanche"]');
   profileDancefloorEnabled = localStorage.getItem('profileDancefloor') !== '0';
   if (favsOnly)   document.body.classList.add('favs-only');
 
@@ -3348,7 +3343,7 @@ function bootApp() {
       fsShowDay = true;
       fsShowDate = true;
       applyFullscreenVisibilityPrefs();profileDancefloorEnabled = true;
-      profileEnabledDays       = ['jeudi', 'vendredi', 'samedi', 'dimanche'];
+      profileEnabledDays       = ['vendredi', 'samedi', 'dimanche'];
       applyProfileState();
       updateFavDayVisibility();
 
