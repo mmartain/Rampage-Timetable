@@ -319,7 +319,8 @@ function makeAxisGridCols(stageCount = 1) {
     const stageCols = Array(count).fill(`${colPx}px`).join(' ');
     return `${AXIS_COL_PX}px ${stageCols}`;
   }
-  return `${AXIS_COL_PX}px ${'1fr '.repeat(count).trim()}`;
+  // minmax(0, 1fr) keeps stage headers from widening tracks via min-content (fullscreen misalignment).
+  return `${AXIS_COL_PX}px ${'minmax(0, 1fr) '.repeat(count).trim()}`;
 }
 
 function applyScheduleHorizontalLayout(stageRow, tl, columnCount) {
