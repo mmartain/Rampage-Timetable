@@ -239,6 +239,20 @@
     overflow: hidden;
   }
 
+  .schedule-h-scroll {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .is-fullscreen .schedule-h-scroll {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
   .content {
     position: relative; z-index: 1;
     padding: 25px 62px 100px;
@@ -905,14 +919,31 @@
     background: #000000; border-color: var(--sun-accent, var(--accent)); color: #ffffff;
   }
 
-html[data-viewport="phone"] { --edge-gap: 12px; --bottom-btn-size: 88px; }
+html[data-viewport="phone"] { --edge-gap: 10px; --bottom-btn-size: 58px; }
 html[data-viewport="phone"] .content {
-  padding: 16px 12px calc(96px + env(safe-area-inset-bottom, 0px));
+  padding: 8px 12px calc(74px + env(safe-area-inset-bottom, 0px));
   padding-left: calc(12px + env(safe-area-inset-left, 0px));
   padding-right: calc(12px + env(safe-area-inset-right, 0px));
 }
-html[data-viewport="phone"] .day-item { font-size: 28px; }
-html[data-viewport="phone"] .day-item.active { font-size: 48px; }
+html[data-viewport="phone"] .top-bar { margin-bottom: 4px; }
+html[data-viewport="phone"] .label {
+  font-size: 15px;
+  letter-spacing: 2px;
+  margin-bottom: 2px;
+  gap: 12px;
+}
+html[data-viewport="phone"] #days-left { font-size: 22px; }
+html[data-viewport="phone"] .day-row { height: auto; gap: 12px; margin-top: 2px; }
+html[data-viewport="phone"] .day-item { font-size: 22px; padding-bottom: 2px; }
+html[data-viewport="phone"] .day-item.active { font-size: 38px; padding-bottom: 0; }
+html[data-viewport="phone"] .day-date {
+  font-size: 20px;
+  letter-spacing: 3px;
+  margin-top: 2px;
+  margin-bottom: 4px;
+}
+html[data-viewport="phone"] .stage-row { min-height: 0; margin-bottom: 4px; }
+html[data-viewport="phone"] .stage-header { padding-top: 3px; padding-bottom: 4px; }
 html[data-viewport="phone"] #bottom-bar {
   display: flex;
   flex-direction: column;
@@ -953,6 +984,15 @@ html[data-viewport="phone"] #bottom-bar-actions .bottom-btn {
   bottom: auto;
   flex: 0 0 auto;
   pointer-events: auto;
+}
+html[data-viewport="phone"] #bottom-bar-actions .bottom-btn svg {
+  width: 30px;
+  height: 30px;
+}
+html[data-viewport="phone"] #settings-btn::before {
+  width: 30px;
+  height: 30px;
+  border-width: 3px;
 }
 html[data-viewport="phone"] #settings-popover {
   right: calc(10px + env(safe-area-inset-right, 0px));
@@ -1001,6 +1041,8 @@ body.scroll-timeline .schedule-scroll {
   -webkit-overflow-scrolling: touch;
 }
 body.scroll-timeline .schedule-h-scroll {
+  display: block;
+  flex: 0 1 auto;
   width: 100%;
   height: auto;
   min-height: 0;
@@ -1049,7 +1091,7 @@ body.scroll-timeline #bottom-bar {
   z-index: 30;
 }
 html[data-viewport="phone"] body.scroll-timeline .content {
-  padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px));
 }
 html[data-viewport="phone"] body.scroll-timeline .schedule-scroll {
   overflow-y: auto;
