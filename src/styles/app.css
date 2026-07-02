@@ -955,14 +955,18 @@ body.scroll-timeline .schedule-scroll {
   -webkit-overflow-scrolling: touch;
 }
 body.scroll-timeline .schedule-h-scroll {
-  min-height: 100%;
+  width: 100%;
+  height: auto;
+  min-height: 0;
+}
+body.scroll-timeline.schedule-h-scroll-active .schedule-scroll {
+  overflow: auto;
 }
 body.scroll-timeline.schedule-h-scroll-active .schedule-h-scroll {
-  overflow-x: auto;
-  overflow-y: visible;
+  overflow: visible;
+  width: max-content;
+  min-width: 100%;
   -webkit-overflow-scrolling: touch;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(255,255,255,0.28) transparent;
 }
 body.scroll-timeline .stage-row {
   position: sticky;
@@ -1005,8 +1009,13 @@ html[data-viewport="phone"] body.scroll-timeline .schedule-scroll {
   overflow-y: auto;
   overflow-x: hidden;
 }
+html[data-viewport="phone"] body.scroll-timeline.schedule-h-scroll-active .schedule-scroll {
+  overflow: auto;
+}
 html[data-viewport="phone"] body.scroll-timeline.schedule-h-scroll-active .schedule-h-scroll {
-  overflow-x: auto;
+  overflow: visible;
+  width: max-content;
+  min-width: 100%;
 }
 
 body.phone-scroll { overflow-y: auto; overflow-x: hidden; height: auto; min-height: 100dvh; }

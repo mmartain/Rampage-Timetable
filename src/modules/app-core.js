@@ -239,22 +239,37 @@ function applyTimelinePixelHeight(tl, axis, startHour, endHour) {
 }
 
 function scrollToNow() {
-  if (!isScrollTimelineMode()) return;
+  if (!isScrollTimelineMode()) {
+    scrollTimelineAutoScrollPending = false;
+    return;
+  }
   const scroll = document.querySelector('.schedule-scroll');
   const tl = $('tl');
-  if (!scroll || !tl) return;
+  if (!scroll || !tl) {
+    scrollTimelineAutoScrollPending = false;
+    return;
+  }
 
   const festivalDay = getCurrentFestivalDay();
   const activeDay = document.querySelector('.day-item.active');
-  if (!festivalDay || !activeDay || activeDay.dataset.day !== festivalDay) return;
+  if (!festivalDay || !activeDay || activeDay.dataset.day !== festivalDay) {
+    scrollTimelineAutoScrollPending = false;
+    return;
+  }
 
   const day = DAYS[festivalDay];
   const h = getFestivalHour(REMAINING_DAY_CUTOFF_HOUR);
   const view = getTimelineWindow(tl, day.startHour, day.endHour);
-  if (h < view.startHour || h >= view.endHour) return;
+  if (h < view.startHour || h >= view.endHour) {
+    scrollTimelineAutoScrollPending = false;
+    return;
+  }
 
   const pxPerHour = getPxPerHour();
-  if (!pxPerHour) return;
+  if (!pxPerHour) {
+    scrollTimelineAutoScrollPending = false;
+    return;
+  }
 
   const nowY = (h - view.startHour) * pxPerHour;
   scroll.scrollTop = Math.max(0, nowY - scroll.clientHeight * 0.28);
@@ -407,6 +422,9 @@ function clearSchedule(stageRow, axis, tl) {
   clearTimelineWindow(tl);
   clearRemainingTimelineState(tl);
   resetTimelineScrollTransform();
+  document.body.classList.remove('schedule-h-scroll-active');
+  if (stageRow) stageRow.style.minWidth = '';
+  if (tl) tl.style.minWidth = '';
 }
 
 const ACT_TEXT_LAYOUT = Object.freeze({
@@ -1978,7 +1996,10 @@ function updateResetBtn() {
       document.body.classList.remove('favs-only');
     updateFavDayVisibility(DAY_KEYS);
     updateFavsBtn();
-    if (!profileMode && !favsOnly) renderDay(normalDayKey);
+    if (!profileMode) {
+      if (favsOnly) renderFavsMode(normalDayKey);
+      else renderDay(normalDayKey);
+    }
   }
   updateFavsBtn();
 }
@@ -2538,7 +2559,7 @@ function bootApp() {
 
   function startDaySwipe(clientX, clientY, target, pointerId = null) {
     if (isSwipeBlocked(target)) return;
-    daySwipeStart = { x: clientX, y: clientY, pointerId, time: Date.now(), axis: null, peekMoved: false };
+    daySwipeStart = { x: clientX, y: clientY, pointerId, time: Date.now(), axis: null, peekMoved: false, target };
   }
 
   function moveDaySwipe(clientX, clientY, pointerId = null) {
@@ -2555,6 +2576,8 @@ function bootApp() {
     }
 
     if (daySwipeStart.axis !== 'y') return false;
+
+    if (isScrollTimelineMode()) return false;
 
     if (dy < -PEEK_START_DISTANCE) {
       const eased = Math.max(-PEEK_MAX_OFFSET, dy * 0.86);
@@ -2579,6 +2602,7 @@ function bootApp() {
     const dy = clientY - daySwipeStart.y;
     const dt = Math.max(1, Date.now() - daySwipeStart.time);
     const wasVerticalPeek = daySwipeStart.axis === 'y' || daySwipeStart.peekMoved;
+    const swipeTarget = daySwipeStart.target;
     daySwipeStart = null;
 
     if (wasVerticalPeek) {
@@ -2596,6 +2620,8 @@ function bootApp() {
     const isLongEnough = absX >= SWIPE_MIN_DISTANCE;
     const isFastEnough = absX >= SWIPE_FAST_DISTANCE && absX / dt >= SWIPE_MIN_VELOCITY;
     if (!isHorizontal || (!isLongEnough && !isFastEnough)) return false;
+    if (document.body.classList.contains('schedule-h-scroll-active')
+      && swipeTarget && swipeTarget.closest('.schedule-scroll, .schedule-h-scroll')) return false;
 
     const direction = dx < 0 ? 1 : -1;
     if (!changeDayBySwipe(direction)) return false;
@@ -3320,7 +3346,10 @@ function bootApp() {
     resetFullscreenCaptureTransform();
     document.body.classList.remove('scroll-timeline');
     document.body.classList.add('is-fullscreen');
-    if (!profileMode && !favsOnly) renderDay(normalDayKey);
+    if (!profileMode) {
+      if (favsOnly) renderFavsMode(normalDayKey);
+      else renderDay(normalDayKey);
+    }
     applyScale();
     refreshFullscreenState();
     updateFullscreenBtn();
@@ -3341,7 +3370,10 @@ function bootApp() {
   function leaveFS() {
     appFS = false;
     document.body.classList.remove('is-fullscreen', 'fs-safe-guides');
-    if (!profileMode && !favsOnly) renderDay(normalDayKey);
+    if (!profileMode) {
+      if (favsOnly) renderFavsMode(normalDayKey);
+      else renderDay(normalDayKey);
+    }
     resetFullscreenCaptureTransform();
     applyScale();
     refreshFullscreenState();
