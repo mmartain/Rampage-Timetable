@@ -770,6 +770,7 @@ function swapSchedule(stageRow, axis, tl, stageFrag, axisFrag, timelineFrag, sta
   tl.appendChild(timelineFrag);
   applyTimelinePixelHeight(tl, axis, startHour, endHour);
   updateStageHeaderSelectionState();
+  fitStageHeaderNames();
 }
 
 function buildStageHeader(name, sub = '', color = accentColor, subColor = '') {
@@ -809,6 +810,25 @@ function updateStageHeaderSelectionState() {
       nameEl.style.textShadow = '';
     }
     header.classList.toggle('sh-bar-glow', !!hasTarget);
+  });
+}
+
+function fitStageHeaderNames() {
+  const stageRow = $('stage-row');
+  if (!stageRow) return;
+  stageRow.querySelectorAll('.sh-name').forEach(name => {
+    name.style.fontSize = '';
+    const avail = name.clientWidth;
+    if (!avail) return;
+    let guard = 0;
+    while (name.scrollWidth > avail && guard < 12) {
+      const cur = parseFloat(getComputedStyle(name).fontSize) || 0;
+      if (!cur) break;
+      const next = Math.max(11, Math.floor(cur * (avail / name.scrollWidth) - 0.5));
+      if (next >= cur) break;
+      name.style.fontSize = next + 'px';
+      guard++;
+    }
   });
 }
 
@@ -3127,7 +3147,10 @@ function bootApp() {
   let responsiveLayoutRAF = 0;
   function queueResponsiveLayout() {
     cancelAnimationFrame(responsiveLayoutRAF);
-    responsiveLayoutRAF = requestAnimationFrame(applyScale);
+    responsiveLayoutRAF = requestAnimationFrame(() => {
+      applyScale();
+      fitStageHeaderNames();
+    });
   }
 
   applyScale();
