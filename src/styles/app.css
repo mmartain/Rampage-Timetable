@@ -919,7 +919,96 @@ html[data-viewport="phone"] .content {
 html[data-viewport="phone"] .day-item { font-size: 28px; }
 html[data-viewport="phone"] .day-item.active { font-size: 48px; }
 html[data-viewport="phone"] #bottom-bar { padding-bottom: env(safe-area-inset-bottom, 0px); }
-html[data-viewport="phone"] .schedule-scroll { overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+
+/* Scroll timeline (normal view): vertical time scroll + optional horizontal stage scroll */
+body.scroll-timeline {
+  overflow: hidden;
+  height: 100dvh;
+  width: 100vw;
+}
+body.scroll-timeline #scaler {
+  position: relative !important;
+  width: 100% !important;
+  max-width: 1080px;
+  height: auto !important;
+  min-height: 100dvh;
+  transform: none !important;
+  left: 0 !important;
+  top: 0 !important;
+  margin: 0 auto;
+}
+body.scroll-timeline .content {
+  height: 100dvh;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+body.scroll-timeline .top-bar {
+  flex-shrink: 0;
+  z-index: 20;
+}
+body.scroll-timeline .schedule-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+body.scroll-timeline .schedule-h-scroll {
+  min-height: 100%;
+}
+body.scroll-timeline.schedule-h-scroll-active .schedule-h-scroll {
+  overflow-x: auto;
+  overflow-y: visible;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.28) transparent;
+}
+body.scroll-timeline .stage-row {
+  position: sticky;
+  top: 0;
+  z-index: 12;
+  background: #000;
+  padding-bottom: 4px;
+}
+body.scroll-timeline .timeline {
+  flex: none;
+}
+body.scroll-timeline .time-axis {
+  position: sticky;
+  left: 0;
+  z-index: 11;
+  background: #000;
+}
+body.scroll-timeline .stage-row > :first-child {
+  position: sticky;
+  left: 0;
+  z-index: 13;
+  background: #000;
+}
+body.scroll-timeline.light-mode:not(.disco-mode) .stage-row,
+body.scroll-timeline.light-mode:not(.disco-mode) .time-axis,
+body.scroll-timeline.light-mode:not(.disco-mode) .stage-row > :first-child {
+  background: #efefef;
+}
+body.scroll-timeline #bottom-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 30;
+}
+html[data-viewport="phone"] body.scroll-timeline .content {
+  padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+}
+html[data-viewport="phone"] body.scroll-timeline .schedule-scroll {
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+html[data-viewport="phone"] body.scroll-timeline.schedule-h-scroll-active .schedule-h-scroll {
+  overflow-x: auto;
+}
+
 body.phone-scroll { overflow-y: auto; overflow-x: hidden; height: auto; min-height: 100dvh; }
 #help-overlay { position: fixed; inset: 0; z-index: 10000; background: rgba(0,0,0,0.92); display: flex; align-items: center; justify-content: center; padding: 24px; }
 #help-overlay[hidden] { display: none; }

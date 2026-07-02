@@ -56,14 +56,17 @@ const SECONDARY_STAGES_BY_DAY = {
     ['Rave Cave', ''],
   ]),
 };
-;
-;
 const stagePriority = name => STAGE_ORDER[String(name || '').toLowerCase()] ?? 99;
 const FS_STAGE_ABBREV = { 'Mainstage': 'Main' };
 const FAVS_KEY = 'favs';
 const TIMELINE_GAP = 8;
 const AXIS_COL_PX = 88;
 const NOW_LINE_LEFT_PX = AXIS_COL_PX - 5;
+const PX_PER_HOUR_DESKTOP = 72;
+const PX_PER_HOUR_PHONE = 80;
+const STAGE_COL_MIN_PX = 200;
+const STAGE_GRID_GAP_PX = 9;
+const H_SCROLL_MIN_STAGES = 4;
 const NOW_LINE_RIGHT_PX = -15;
 const REMAINING_DAY_CUTOFF_HOUR = 1;
 const REMAINING_WINDOW_HOURS = 6;
@@ -72,6 +75,7 @@ const REMAINING_MIN_FUTURE_HOURS = 4;
 const CROSS_SCENE_NOTICE_LEAD_HOURS = 0.5;
 const MAX_UPCOMING_SUMMARY_MINUTES = 480;
 const CANVAS_MARGIN = -100;
+let scrollTimelineAutoScrollPending = false;
 const $ = id => document.getElementById(id);
 
 function getStoredArray(key) {
@@ -195,8 +199,106 @@ function getStageTextLayout(columnCount) {
   return STAGE_TEXT_LAYOUT_BY_COLUMN_COUNT[columnCount] || STAGE_TEXT_LAYOUT_BY_COLUMN_COUNT[5];
 }
 
+function isScrollTimelineMode() {
+  return !document.body.classList.contains('is-fullscreen');
+}
+
+function isPhoneScrollLayout() {
+  return document.documentElement.dataset.viewport === 'phone' && isScrollTimelineMode();
+}
+
+function getPxPerHour() {
+  if (!isScrollTimelineMode()) return null;
+  return isPhoneScrollLayout() ? PX_PER_HOUR_PHONE : PX_PER_HOUR_DESKTOP;
+}
+
+function getTimelinePixelHeight(startHour, endHour) {
+  const pxPerHour = getPxPerHour();
+  if (!pxPerHour) return null;
+  return Math.max(pxPerHour, Math.round((endHour - startHour) * pxPerHour));
+}
+
+function applyTimelinePixelHeight(tl, axis, startHour, endHour) {
+  const heightPx = getTimelinePixelHeight(startHour, endHour);
+  const pxPerHour = getPxPerHour();
+  if (!heightPx || !pxPerHour) {
+    if (tl) {
+      tl.style.height = '';
+      tl.style.minHeight = '';
+    }
+    if (axis) axis.style.height = '';
+    document.documentElement.style.removeProperty('--timeline-px-height');
+    document.documentElement.style.removeProperty('--px-per-hour');
+    return;
+  }
+  tl.style.height = heightPx + 'px';
+  tl.style.minHeight = heightPx + 'px';
+  axis.style.height = heightPx + 'px';
+  document.documentElement.style.setProperty('--timeline-px-height', heightPx + 'px');
+  document.documentElement.style.setProperty('--px-per-hour', pxPerHour + 'px');
+}
+
+function scrollToNow() {
+  if (!isScrollTimelineMode()) return;
+  const scroll = document.querySelector('.schedule-scroll');
+  const tl = $('tl');
+  if (!scroll || !tl) return;
+
+  const festivalDay = getCurrentFestivalDay();
+  const activeDay = document.querySelector('.day-item.active');
+  if (!festivalDay || !activeDay || activeDay.dataset.day !== festivalDay) return;
+
+  const day = DAYS[festivalDay];
+  const h = getFestivalHour(REMAINING_DAY_CUTOFF_HOUR);
+  const view = getTimelineWindow(tl, day.startHour, day.endHour);
+  if (h < view.startHour || h >= view.endHour) return;
+
+  const pxPerHour = getPxPerHour();
+  if (!pxPerHour) return;
+
+  const nowY = (h - view.startHour) * pxPerHour;
+  scroll.scrollTop = Math.max(0, nowY - scroll.clientHeight * 0.28);
+  scrollTimelineAutoScrollPending = false;
+}
+
+function queueScrollToNow() {
+  if (!isScrollTimelineMode()) return;
+  scrollTimelineAutoScrollPending = true;
+  requestAnimationFrame(() => requestAnimationFrame(scrollToNow));
+}
+
+function getHScrollThreshold() {
+  return isPhoneScrollLayout() ? 3 : H_SCROLL_MIN_STAGES;
+}
+
+function getStageColMinPx() {
+  return isPhoneScrollLayout() ? 260 : STAGE_COL_MIN_PX;
+}
+
 function makeAxisGridCols(stageCount = 1) {
-  return `${AXIS_COL_PX}px ${'1fr '.repeat(Math.max(stageCount, 1)).trim()}`;
+  const count = Math.max(stageCount, 1);
+  const minCol = getStageColMinPx();
+  if (isScrollTimelineMode() && count >= getHScrollThreshold()) {
+    const stageCols = Array(count).fill(`minmax(${minCol}px, 1fr)`).join(' ');
+    return `${AXIS_COL_PX}px ${stageCols}`;
+  }
+  return `${AXIS_COL_PX}px ${'1fr '.repeat(count).trim()}`;
+}
+
+function applyScheduleHorizontalLayout(stageRow, tl, columnCount) {
+  const threshold = getHScrollThreshold();
+  const useHScroll = isScrollTimelineMode() && columnCount >= threshold;
+  document.body.classList.toggle('schedule-h-scroll-active', useHScroll);
+  if (!stageRow || !tl) return;
+  if (!useHScroll) {
+    stageRow.style.minWidth = '';
+    tl.style.minWidth = '';
+    return;
+  }
+  const minCol = getStageColMinPx();
+  const minWidth = AXIS_COL_PX + columnCount * minCol + Math.max(0, columnCount - 1) * STAGE_GRID_GAP_PX;
+  stageRow.style.minWidth = minWidth + 'px';
+  tl.style.minWidth = minWidth + 'px';
 }
 
 function setScheduleGrid(stageRow, tl, gridCols) {
@@ -213,6 +315,7 @@ function setScheduleGrid(stageRow, tl, gridCols) {
   tl.dataset.columnCount = String(columnCount);
   tl.style.setProperty('--axis-col-width', `${AXIS_COL_PX}px`);
   tl.style.setProperty('--grid-line-left', gridLineLeft);
+  applyScheduleHorizontalLayout(stageRow, tl, columnCount);
 }
 
 function getActTimeColumnCount(act) {
@@ -285,11 +388,13 @@ function removeTimelineContent(tl) {
 
 function buildGridLinesFragment(startHour, endHour, scaleHours = endHour - startHour) {
   const frag = document.createDocumentFragment();
+  const pxPerHour = getPxPerHour();
   const total = Math.max(0.01, scaleHours);
   for (let h = Math.floor(startHour) + 1; h < endHour; h++) {
     const line = document.createElement('div');
     line.className = 'grid-line';
-    line.style.top = (((h - startHour) / total) * 100) + '%';
+    if (pxPerHour) line.style.top = ((h - startHour) * pxPerHour) + 'px';
+    else line.style.top = (((h - startHour) / total) * 100) + '%';
     frag.appendChild(line);
   }
   return frag;
@@ -472,7 +577,45 @@ function layoutOneActText(act) {
   computeNameFontSize(name, boxW, boxH);
 }
 
+function layoutOneActTextScroll(act) {
+  const body = directChildWithClass(act, 'act-body');
+  const name = directChildWithClass(body, 'act-name');
+  if (!act || !body || !name) return;
+
+  prepareActTextBox(act, body, name);
+  const time = directChildWithClass(body, 'act-time');
+  if (time) prepareActTime(time);
+
+  const durationMin = (parseFloat(act.dataset.end) - parseFloat(act.dataset.start)) * 60;
+  let nameSize;
+  let timeSize;
+  if (durationMin >= 90) { nameSize = 18; timeSize = 13; }
+  else if (durationMin >= 59) { nameSize = 15; timeSize = 12; }
+  else if (durationMin >= 30) { nameSize = 13; timeSize = 0; }
+  else { nameSize = 11; timeSize = 0; }
+
+  if (isPhoneScrollLayout()) {
+    nameSize += 2;
+    if (timeSize) timeSize += 1;
+  }
+
+  name.style.fontSize = nameSize + 'px';
+  name.style.maxWidth = '';
+  if (time) {
+    if (timeSize) {
+      time.style.fontSize = timeSize + 'px';
+      time.classList.remove('act-time-hidden');
+    } else {
+      time.classList.add('act-time-hidden');
+    }
+  }
+}
+
 function updateActTextLayout() {
+  if (isScrollTimelineMode()) {
+    document.querySelectorAll('.act').forEach(layoutOneActTextScroll);
+    return;
+  }
   document.querySelectorAll('.act').forEach(layoutOneActText);
 }
 
@@ -528,6 +671,13 @@ function applyCachedActTextStyle(act, layoutKey = '') {
 }
 
 function precomputeNormalDayTextLayouts(finalDayKey) {
+  if (isScrollTimelineMode()) {
+    const safeFinalDay = finalDayKey || normalDayKey || 'jeudi';
+    normalActTextLayoutsReady = false;
+    setActiveDay(safeFinalDay);
+    renderDay(safeFinalDay);
+    return;
+  }
   const savedSecondaryMode = secondaryStagesMode;
   const savedCampingStageMode = false;
   const safeFinalDay = finalDayKey || normalDayKey || 'jeudi';
@@ -594,6 +744,7 @@ function swapSchedule(stageRow, axis, tl, stageFrag, axisFrag, timelineFrag, sta
     tl.appendChild(buildGridLinesFragment(startHour, endHour, options.scaleHours));
   }
   tl.appendChild(timelineFrag);
+  applyTimelinePixelHeight(tl, axis, startHour, endHour);
   updateStageHeaderSelectionState();
 }
 
@@ -645,19 +796,29 @@ function buildStageHeaderFragment(stages, headerBuilder) {
 }
 
 function buildAxisFragment(startHour, endHour, scaleHours = endHour - startHour) {
+  const pxPerHour = getPxPerHour();
   const totalMin = Math.max(0.01, scaleHours) * 60;
   const frag = document.createDocumentFragment();
   for (let h = Math.ceil(startHour); h < endHour; h++) {
     const span = document.createElement('span');
     span.className = 'tick-label';
     span.textContent = fmtAxisH(h);
-    span.style.top = (((h - startHour) * 60 / totalMin) * 100) + '%';
+    if (pxPerHour) span.style.top = ((h - startHour) * pxPerHour) + 'px';
+    else span.style.top = (((h - startHour) * 60 / totalMin) * 100) + '%';
     frag.appendChild(span);
   }
   return frag;
 }
 
 function positionAct(div, start, end, startHour, endHour) {
+  const pxPerHour = getPxPerHour();
+  if (pxPerHour) {
+    const topPx = (start - startHour) * pxPerHour;
+    const heightPx = (end - start) * pxPerHour - TIMELINE_GAP;
+    div.style.top = topPx + 'px';
+    div.style.height = Math.max(28, heightPx) + 'px';
+    return;
+  }
   const totalMin = (endHour - startHour) * 60;
   const topPct = ((start - startHour) * 60 / totalMin) * 100;
   const heightPct = ((end - start) * 60 / totalMin) * 100;
@@ -1169,8 +1330,9 @@ function updateCrossSceneIndicators() {
   setCrossSceneIndicator($('stage-view-btn'), hasOtherScheduleGroup);
 }
 
-function makeStageGridCols(stages) {
-  return makeAxisGridCols(stages.length);
+function makeStageGridCols(stagesOrCount) {
+  const count = typeof stagesOrCount === 'number' ? stagesOrCount : stagesOrCount.length;
+  return makeAxisGridCols(count);
 }
 
 function getTimeZoneOffsetMinutes(date, timeZone) {
@@ -1681,8 +1843,6 @@ function renderFavs(dayKey) {
     return;
   }
 
-  const N = stageActs.length;
-
   const allSelected = stageActs.flatMap(s => s.acts);
   const timeWindow = remainingActive
     ? getRemainingTimelineWindow(day, allSelected)
@@ -1693,7 +1853,7 @@ function renderFavs(dayKey) {
   document.body.classList.remove(...DAY_KEYS.map(d => 'day-' + d));
   document.body.classList.add('day-' + dayKey);
 
-  setScheduleGrid(stageRow, tl, makeAxisGridCols(N));
+  setScheduleGrid(stageRow, tl, makeAxisGridCols(stageActs.length));
   setTimelineWindow(tl, startHour, endHour);
 
   const stageFrag    = buildStageHeaderFragment(stageActs.map(s => s.stage), s => buildStageHeader(s.name, s.sub));
@@ -1723,6 +1883,10 @@ function renderFavs(dayKey) {
   swapSchedule(stageRow, axis, tl, stageFrag, axisFrag, timelineFrag, startHour, axisEndHour, timeWindow);
   updateNowLine();
   updateResetBtn();
+  if (isScrollTimelineMode()) {
+    updateActTextLayout();
+    queueScrollToNow();
+  }
 }
 
 function renderDay(dayKey) {
@@ -1739,11 +1903,8 @@ function renderDay(dayKey) {
   document.body.classList.add('day-' + dayKey);
   document.body.classList.toggle('secondary-stages-mode', !!secondaryStagesMode);
   const stages = getNormalViewStages(dayKey);
-  const actsByStage = stages.map(stage => ({
-    stage,
-    acts: getActsFromOverrides(dayKey, stage.name, overrideEntries)
-      .filter(act => shouldShowActForCurrentView(dayKey, stage.name, act, favs)),
-  }));
+  const actsByStage = stages.map(stage => ({ stage, acts: getActsFromOverrides(dayKey, stage.name, overrideEntries)
+      .filter(act => shouldShowActForCurrentView(dayKey, stage.name, act, favs)) }));
   const remainingActive = isRemainingModeActiveForDay(dayKey);
   const allVisibleActs = actsByStage.flatMap(s => s.acts);
   const timeWindow = remainingActive
@@ -1751,7 +1912,7 @@ function renderDay(dayKey) {
       : { startHour: day.startHour, endHour: day.endHour, axisEndHour: day.endHour, scaleHours: day.endHour - day.startHour };
   const { startHour, endHour, axisEndHour, scaleHours } = timeWindow;
 
-  setScheduleGrid(stageRow, tl, makeStageGridCols(stages));
+  setScheduleGrid(stageRow, tl, makeStageGridCols(stages.length));
   setTimelineWindow(tl, startHour, endHour);
 
   const layoutKey = dayKey + (secondaryStagesMode ? '|secondary' : '|primary') + (remainingActive ? '|remaining' : '');
@@ -1785,9 +1946,11 @@ function renderDay(dayKey) {
 
   swapSchedule(stageRow, axis, tl, stageFrag, axisFrag, timelineFrag, startHour, axisEndHour, timeWindow);
   if (!actTextLayoutsPrecomputing && !normalActTextLayoutsReady) queueActTextLayoutIfMissing();
+  else if (isScrollTimelineMode()) updateActTextLayout();
   updateNowLine();
   updateResetBtn();
   queueLayoutRefresh();
+  if (isScrollTimelineMode()) queueScrollToNow();
 }
 
 
@@ -2079,23 +2242,31 @@ function updateNowLine() {
   const remainingWindowHours = parseFloat(tl.dataset.remainingWindowHours) || REMAINING_WINDOW_HOURS;
   let lineVisible = h >= view.startHour && h < view.endHour;
   let lineTopPct = null;
+  let lineTopPx = null;
+  const pxPerHour = getPxPerHour();
 
   if (isRemainingTimeline && Number.isFinite(remainingBaseStart)) {
     resetTimelineScrollTransform();
     lineVisible = h >= view.startHour && h < day.endHour;
     if (lineVisible) {
-      const totalMin = (view.endHour - view.startHour) * 60;
-      lineTopPct = ((h - view.startHour) * 60) / totalMin * 100;
+      if (pxPerHour) lineTopPx = (h - view.startHour) * pxPerHour;
+      else {
+        const totalMin = (view.endHour - view.startHour) * 60;
+        lineTopPct = ((h - view.startHour) * 60) / totalMin * 100;
+      }
     }
   } else {
     resetTimelineScrollTransform();
     if (lineVisible) {
-      const totalMin = (view.endHour - view.startHour) * 60;
-      lineTopPct = ((h - view.startHour) * 60) / totalMin * 100;
+      if (pxPerHour) lineTopPx = (h - view.startHour) * pxPerHour;
+      else {
+        const totalMin = (view.endHour - view.startHour) * 60;
+        lineTopPct = ((h - view.startHour) * 60) / totalMin * 100;
+      }
     }
   }
 
-  if (lineVisible && lineTopPct !== null) {
+  if (lineVisible && (lineTopPx !== null || lineTopPct !== null)) {
     const line = existing || document.createElement('div');
     line.id = 'now-line';
     if (!existing) {
@@ -2110,7 +2281,7 @@ function updateNowLine() {
     line.style.height = '6px';
     line.style.transform = 'translateY(-50%)';
     line.style.boxShadow = '0 0 16px var(--accent), 0 0 0 1px rgba(255,255,255,0.65)';
-    line.style.top = lineTopPct + '%';
+    line.style.top = lineTopPx !== null ? lineTopPx + 'px' : lineTopPct + '%';
   } else if (existing) {
     existing.remove();
   }
@@ -2192,6 +2363,7 @@ function bootApp() {
     document.body.style.opacity = '1';
     document.documentElement.classList.add('page-revealed');
     queueLayoutRefresh();
+    queueScrollToNow();
   }
 
   loadOverrides().then(() => {
@@ -2943,14 +3115,52 @@ function bootApp() {
     const vh = (vv && vv.height) ? vv.height : window.innerHeight;
     const baseW = 1080;
     const baseH = 1920;
-    const isPhone = isPhoneLikeViewport(vw, vh) && !document.body.classList.contains('is-fullscreen');
+    const isFS = document.body.classList.contains('is-fullscreen');
+    document.body.classList.toggle('scroll-timeline', !isFS);
+
+    if (!isFS) {
+      const isPhone = isPhoneLikeViewport(vw, vh);
+      document.documentElement.dataset.viewport = isPhone ? 'phone' : 'desktop';
+      document.body.classList.toggle('phone-scroll', false);
+
+      scaler.style.position = 'relative';
+      scaler.style.width = '100%';
+      scaler.style.maxWidth = baseW + 'px';
+      scaler.style.height = 'auto';
+      scaler.style.minHeight = '100dvh';
+      scaler.style.transform = 'none';
+      scaler.style.left = '0';
+      scaler.style.top = '0';
+      scaler.style.margin = '0 auto';
+      scaler.style.touchAction = '';
+
+      const tl = $('tl');
+      const axis = $('axis');
+      const stageRow = $('stage-row');
+      if (tl && axis) {
+        const view = getTimelineWindow(tl, 0, 24);
+        if (tl.dataset.startHour) {
+          applyTimelinePixelHeight(tl, axis, view.startHour, view.endHour);
+          const columnCount = parseInt(tl.dataset.columnCount || '0', 10);
+          if (columnCount) applyScheduleHorizontalLayout(stageRow, tl, columnCount);
+        }
+      }
+      if (scrollTimelineAutoScrollPending) queueScrollToNow();
+      return;
+    }
+
+    const isPhone = isPhoneLikeViewport(vw, vh);
     document.documentElement.dataset.viewport = isPhone ? 'phone' : 'desktop';
     document.body.classList.toggle('phone-scroll', isPhone);
+
+    scaler.style.position = 'absolute';
+    scaler.style.maxWidth = '';
+    scaler.style.margin = '';
+    scaler.style.minHeight = '';
 
     const viewportScale = isPhone
       ? vw / baseW
       : Math.min(vw / baseW, vh / baseH);
-    const isFS = document.body.classList.contains('is-fullscreen');
     const phoneCaptureFS = isFS && isPhoneLikeFullscreenViewport(vw, vh);
     let virtualH = baseH;
     let displayScale = viewportScale;
@@ -3108,6 +3318,7 @@ function bootApp() {
   function enterFS() {
     appFS = true;
     resetFullscreenCaptureTransform();
+    document.body.classList.remove('scroll-timeline');
     document.body.classList.add('is-fullscreen');
     if (!profileMode && !favsOnly) renderDay(normalDayKey);
     applyScale();
@@ -3115,6 +3326,7 @@ function bootApp() {
     updateFullscreenBtn();
     applyAccentToElements();
     syncFullscreenLayout();
+    queueActTextLayout();
     setTimeout(refreshFullscreenState, 0);
     document.addEventListener('click', exitOnClick);
     const el = document.documentElement;
@@ -3136,7 +3348,8 @@ function bootApp() {
     setTimeout(refreshFullscreenState, 0);
     updateFullscreenBtn();
     applyAccentToElements();
-    queueActTextLayout();
+    updateActTextLayout();
+    queueScrollToNow();
     document.removeEventListener('click', exitOnClick);
     const exit = document.exitFullscreen || document.webkitExitFullscreen || document.mozCancelFullScreen;
     if (exit && (document.fullscreenElement || document.webkitFullscreenElement)) exit.call(document).catch(() => {});
